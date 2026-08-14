@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { LogIn, Wrench, AlertCircle } from 'lucide-react';
-import { login, initializeUsers, getCurrentUser } from '../auth';
+import { login, initializeUsers, getCurrentUser, iniciarDemostracion } from '../auth';
+import { apiConfigurada } from '../api';
 
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
     initializeUsers();
@@ -18,16 +20,25 @@ export function Login() {
     }
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setCargando(true);
 
-    const user = login(email, password);
-    if (user) {
-      navigate('/');
-    } else {
-      setError('Email o contraseña incorrectos');
+    try {
+      const user = await login(email, password);
+      if (user) navigate('/');
+      else setError('Email o contraseña incorrectos');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');
+    } finally {
+      setCargando(false);
     }
+  };
+
+  const handleDemo = () => {
+    iniciarDemostracion();
+    navigate('/');
   };
 
   return (
@@ -48,7 +59,7 @@ export function Login() {
         <div className="bg-card border border-border rounded-lg p-8">
           <h2 className="text-xl font-semibold mb-6">Iniciar Sesión</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {apiConfigurada ? <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-2">
                 Email
@@ -87,20 +98,16 @@ export function Login() {
 
             <button
               type="submit"
+              disabled={cargando}
               className="w-full bg-primary hover:bg-primary/90 px-6 py-3 rounded-md transition-colors flex items-center justify-center gap-2"
             >
               <LogIn className="w-5 h-5" />
-              Ingresar
+              {cargando ? 'Ingresando…' : 'Ingresar'}
             </button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center">
-              Usuario por defecto: <span className="font-mono">admin@taller.com</span>
-              <br />
-              Contraseña: <span className="font-mono">admin123</span>
-            </p>
-          </div>
+          </form> : <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Explorá todas las funciones con datos locales de ejemplo. Este acceso no contiene información real del taller.</p>
+            <button onClick={handleDemo} className="w-full bg-primary hover:bg-primary/90 px-6 py-3 rounded-md transition-colors flex items-center justify-center gap-2"><LogIn className="w-5 h-5" />Ingresar al modo demostración</button>
+          </div>}
         </div>
       </div>
     </div>

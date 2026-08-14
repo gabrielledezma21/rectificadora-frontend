@@ -1,77 +1,55 @@
 import { User } from './types';
-import { logActivity } from './audit';
+import { apiConfigurada, guardarToken, limpiarSesionApi, solicitarApi } from './api';
 
-const USERS_KEY = 'motor_shop_users';
 const CURRENT_USER_KEY = 'motor_shop_current_user';
 
-// Inicializar con usuario admin por defecto
-export function initializeUsers(): void {
-  const users = getUsers();
-  if (users.length === 0) {
-    const adminUser: User = {
-      id: crypto.randomUUID(),
-      email: 'admin@taller.com',
-      password: 'admin123',
-      role: 'admin',
-      name: 'Administrador',
-      createdAt: new Date().toISOString(),
-    };
-    saveUser(adminUser);
-  }
+export function initializeUsers(): void {}
+
+export function iniciarDemostracion(): User {
+  const usuario: User = { id: 'modo-demostracion', email: 'demo@taller.local', password: '', role: 'usuario', name: 'Operador de demostración', createdAt: new Date().toISOString() };
+  sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(usuario));
+  return usuario;
 }
 
 export function getUsers(): User[] {
-  if (typeof window === 'undefined') return [];
-  const data = localStorage.getItem(USERS_KEY);
-  return data ? JSON.parse(data) : [];
+  return [];
 }
 
 export function saveUser(user: User): void {
-  const users = getUsers();
-  const existingIndex = users.findIndex(u => u.id === user.id);
-
-  if (existingIndex >= 0) {
-    users[existingIndex] = user;
-    logActivity('Usuario actualizado', `${user.name} · ${user.role}`, 'usuario');
-  } else {
-    users.push(user);
-    logActivity('Usuario creado', `${user.name} · ${user.role}`, 'usuario');
-  }
-
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  void user;
+  throw new Error('La gestión de usuarios requiere conexión con la API');
 }
 
 export function deleteUser(userId: string): void {
-  const current = getUsers();
-  const deleted = current.find(u => u.id === userId);
-  const users = current.filter(u => u.id !== userId);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  if (deleted) logActivity('Usuario eliminado', deleted.name, 'usuario');
+  void userId;
+  throw new Error('La gestión de usuarios requiere conexión con la API');
 }
 
-export function login(email: string, password: string): User | null {
-  const users = getUsers();
-  const user = users.find(u => u.email === email && u.password === password);
+interface RespuestaLogin {
+  token: string;
+  id: string;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'OPERADOR';
+}
 
-  if (user) {
-    // No guardamos la contraseña en el current user
-    const userSession = { ...user, password: '' };
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userSession));
-    logActivity('Inicio de sesión', user.name, 'sistema');
-    return userSession;
-  }
-
-  return null;
+export async function login(email: string, password: string): Promise<User | null> {
+  if (!apiConfigurada) return null;
+  const respuesta = await solicitarApi<RespuestaLogin>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  const usuario: User = { id: respuesta.id, email: respuesta.email, password: '', role: respuesta.role === 'ADMIN' ? 'admin' : 'usuario', name: respuesta.name, createdAt: new Date().toISOString() };
+  guardarToken(respuesta.token);
+  sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(usuario));
+  return usuario;
 }
 
 export function logout(): void {
-  logActivity('Cierre de sesión', 'Sesión finalizada', 'sistema');
-  localStorage.removeItem(CURRENT_USER_KEY);
+  sessionStorage.removeItem(CURRENT_USER_KEY);
+  limpiarSesionApi();
 }
 
 export function getCurrentUser(): User | null {
   if (typeof window === 'undefined') return null;
-  const data = localStorage.getItem(CURRENT_USER_KEY);
+  const data = sessionStorage.getItem(CURRENT_USER_KEY);
   return data ? JSON.parse(data) : null;
 }
 

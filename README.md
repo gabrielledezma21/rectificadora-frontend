@@ -21,11 +21,6 @@ npm ci
 npm run dev
 ```
 
-El frontend funciona actualmente con almacenamiento local de demostración. La siguiente integración reemplaza ese almacenamiento por la API de Spring Boot del repositorio `rectificadora-backend`.
-
-## Acceso de demostración
-
-- Usuario: `admin@taller.com`
-- Contraseña: `admin123`
-
-Estas credenciales son únicamente para desarrollo y deben cambiarse antes de una instalación real.
+Copiar `.env.example` como `.env.local` y configurar `NEXT_PUBLIC_API_URL`
+para utilizar el backend. Sin esa variable, la interfaz abre un modo de
+demostración local sin credenciales reales ni información del taller.
