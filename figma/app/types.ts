@@ -5,6 +5,7 @@ export interface User {
   role: 'admin' | 'usuario';
   name: string;
   createdAt: string;
+  active?: boolean;
 }
 
 export interface Payment {
@@ -19,13 +20,17 @@ export interface WorkOrder {
   id: string;
   orderNumber: string;
   date: string;
+  fechaPrometida?: string;
+  clientId?: string;
+  vehicleId?: string;
   cliente: string;
   motor: string;
   numeroMotor: string;
+  patente?: string;
   cantidadCilindros: number;
   medidaFinal?: string;
   notas: string;
-  estado: 'recepcion' | 'en-proceso' | 'finalizado';
+  estado: 'recepcion' | 'en-proceso' | 'finalizado' | 'entregado' | 'cancelado';
   total: number;
   sena: number;
   saldo: number;

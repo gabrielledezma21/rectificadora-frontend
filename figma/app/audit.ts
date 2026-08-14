@@ -17,9 +17,16 @@ export function getAuditEntries(): AuditEntry[] {
 
 export function logActivity(action: string, detail: string, category: AuditEntry['category'] = 'sistema'): void {
   if (typeof window === 'undefined') return;
-  const session = localStorage.getItem('motor_shop_current_user');
+  const session = sessionStorage.getItem('motor_shop_current_user');
   const user = session ? JSON.parse(session).name : 'Sistema';
   const entries = getAuditEntries();
   entries.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), user, action, detail, category });
   localStorage.setItem(AUDIT_KEY, JSON.stringify(entries.slice(0, 500)));
+}
+
+export async function cargarAuditoria(): Promise<AuditEntry[]> {
+  const { apiConfigurada } = await import('./api');
+  if (!apiConfigurada) return getAuditEntries();
+  const { listarAuditoria } = await import('./serviciosApi');
+  return listarAuditoria();
 }

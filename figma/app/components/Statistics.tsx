@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Calendar, TrendingUp, Wrench, DollarSign } from 'lucide-react';
 import { WorkOrder } from '../types';
-import { getOrders } from '../store';
+import { cargarOrdenes } from '../store';
 
 export function Statistics() {
   const navigate = useNavigate();
@@ -25,13 +25,11 @@ export function Statistics() {
     paymentMethods: {} as Record<string, number>,
   });
 
-  useEffect(() => {
-    calculateStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth]);
-
-  const calculateStats = () => {
-    const allOrders = getOrders();
+  const [error, setError] = useState('');
+  async function calculateStats() {
+    let allOrders: WorkOrder[];
+    try { allOrders = await cargarOrdenes(); setError(''); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar las estadísticas'); return; }
     const [year, month] = selectedMonth.split('-').map(Number);
 
     const monthOrders = allOrders.filter(order => {
@@ -94,7 +92,15 @@ export function Statistics() {
       trabajosCiguenal,
       paymentMethods,
     });
-  };
+  }
+
+  useEffect(() => {
+    // La actualización ocurre después de resolver la consulta remota.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void calculateStats();
+    // La función usa únicamente el mes seleccionado y los datos remotos actuales.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
   const getTopItems = (items: Record<string, number>, limit = 5) => {
     return Object.entries(items)
@@ -113,6 +119,7 @@ export function Statistics() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto">
+        {error && <div className="mb-5 bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">{error}</div>}
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">

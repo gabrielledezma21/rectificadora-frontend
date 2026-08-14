@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Printer } from 'lucide-react';
-import { WorkOrder, TRABAJOS_BLOCK, REPUESTOS, TRABAJOS_TAPA, TRABAJOS_CIGUENAL } from '../types';
-import { getOrderById } from '../store';
+import { WorkOrder } from '../types';
+import { cargarOrden } from '../store';
 
 export function PrintOrder() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<WorkOrder | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (id) {
-      const foundOrder = getOrderById(id);
-      if (foundOrder) {
-        setOrder(foundOrder);
-      } else {
-        navigate('/');
-      }
+      cargarOrden(id).then(foundOrder => foundOrder ? setOrder(foundOrder) : navigate('/')).catch(e => setError(e instanceof Error ? e.message : 'No se pudo cargar la orden'));
     }
   }, [id, navigate]);
 
@@ -24,9 +20,8 @@ export function PrintOrder() {
     window.print();
   };
 
-  if (!order) {
-    return null;
-  }
+  if (error) return <main className="min-h-screen bg-background p-8 text-destructive">{error}</main>;
+  if (!order) return <main className="min-h-screen bg-background p-8 text-muted-foreground">Cargando orden…</main>;
 
   const allTasks = [
     ...order.trabajosBlock.map(t => ({ type: 'Block', name: t })),
@@ -108,6 +103,7 @@ export function PrintOrder() {
                 <span className="text-sm font-semibold w-32">N° Motor:</span>
                 <span className="text-sm flex-1 font-mono">{order.numeroMotor || 'N/A'}</span>
               </div>
+              <div className="flex border-b border-gray-300 pb-2"><span className="text-sm font-semibold w-32">Patente:</span><span className="text-sm flex-1 font-mono">{order.patente || 'N/A'}</span></div>
             </div>
             <div className="space-y-3">
               <div className="flex border-b border-gray-300 pb-2">
@@ -120,6 +116,7 @@ export function PrintOrder() {
                   })}
                 </span>
               </div>
+              {order.fechaPrometida && <div className="flex border-b border-gray-300 pb-2"><span className="text-sm font-semibold w-32">Entrega estimada:</span><span className="text-sm flex-1 font-mono">{new Date(`${order.fechaPrometida}T12:00:00`).toLocaleDateString('es-AR')}</span></div>}
               <div className="flex border-b border-gray-300 pb-2">
                 <span className="text-sm font-semibold w-32">Cilindros:</span>
                 <span className="text-sm flex-1">{order.cantidadCilindros}</span>
@@ -159,7 +156,6 @@ export function PrintOrder() {
                       Trabajos del Block:
                     </div>
                     {order.trabajosBlock.map((trabajo, idx) => {
-                      const task = TRABAJOS_BLOCK.find(t => t.name === trabajo);
                       return (
                         <div key={idx} className="flex items-start justify-between gap-3 py-1 ml-4">
                           <div className="flex items-start gap-3">
@@ -178,7 +174,6 @@ export function PrintOrder() {
                       Repuestos:
                     </div>
                     {order.repuestos.map((repuesto, idx) => {
-                      const task = REPUESTOS.find(t => t.name === repuesto);
                       return (
                         <div key={idx} className="flex items-start justify-between gap-3 py-1 ml-4">
                           <div className="flex items-start gap-3">
@@ -197,7 +192,6 @@ export function PrintOrder() {
                       Trabajos de Tapa:
                     </div>
                     {order.trabajosTapa.map((trabajo, idx) => {
-                      const task = TRABAJOS_TAPA.find(t => t.name === trabajo);
                       return (
                         <div key={idx} className="flex items-start justify-between gap-3 py-1 ml-4">
                           <div className="flex items-start gap-3">
@@ -216,7 +210,6 @@ export function PrintOrder() {
                       Trabajos de Cigüeñal:
                     </div>
                     {order.trabajosCiguenal.map((trabajo, idx) => {
-                      const task = TRABAJOS_CIGUENAL.find(t => t.name === trabajo);
                       return (
                         <div key={idx} className="flex items-start justify-between gap-3 py-1 ml-4">
                           <div className="flex items-start gap-3">

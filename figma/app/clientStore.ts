@@ -1,8 +1,13 @@
 import { logActivity } from './audit';
+import { apiConfigurada } from './api';
+import { eliminarClienteApi, guardarClienteApi, listarClientes } from './serviciosApi';
+import type { WorkOrder } from './types';
 
 export interface Vehicle {
+  id?: string;
   motor: string;
   numeroMotor?: string;
+  patente?: string;
 }
 
 export interface Client {
@@ -87,7 +92,7 @@ export function getOrCreateClient(nombre: string, motor: string, numeroMotor?: s
 }
 
 // Función para calcular estadísticas financieras de un cliente
-export function getClientFinancialStats(clientName: string, orders: any[]) {
+export function getClientFinancialStats(clientName: string, orders: WorkOrder[]) {
   const clientOrders = orders.filter(o =>
     o.cliente.toLowerCase() === clientName.toLowerCase()
   );
@@ -105,4 +110,35 @@ export function getClientFinancialStats(clientName: string, orders: any[]) {
       ? clientOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
       : null,
   };
+}
+
+export async function cargarClientes(consulta = ''): Promise<Client[]> {
+  return apiConfigurada ? listarClientes(consulta) : (consulta ? findClientsByName(consulta) : getClients());
+}
+
+export async function persistirCliente(client: Client): Promise<Client> {
+  if (apiConfigurada) return guardarClienteApi(client);
+  saveClient(client);
+  return client;
+}
+
+export async function borrarCliente(id: string): Promise<void> {
+  if (apiConfigurada) return eliminarClienteApi(id);
+  deleteClient(id);
+}
+
+export async function asegurarCliente(nombre: string, motor: string, numeroMotor?: string, patente?: string, clientId?: string, vehicleId?: string): Promise<{ client: Client; vehicle: Vehicle }> {
+  if (!apiConfigurada) {
+    const client = getOrCreateClient(nombre, motor, numeroMotor);
+    return { client, vehicle: client.vehiculos.find(v => v.motor.toLowerCase() === motor.toLowerCase())! };
+  }
+  let client = clientId ? (await listarClientes()).find(c => c.id === clientId) : (await listarClientes(nombre)).find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+  if (!client) client = await guardarClienteApi({ id: '', nombre, vehiculos: [{ motor, numeroMotor, patente }], createdAt: new Date().toISOString() });
+  let vehicle = vehicleId ? client.vehiculos.find(v => v.id === vehicleId) : client.vehiculos.find(v => v.motor.toLowerCase() === motor.toLowerCase() && (!numeroMotor || v.numeroMotor === numeroMotor));
+  if (!vehicle) {
+    client = await guardarClienteApi({ ...client, vehiculos: [...client.vehiculos, { motor, numeroMotor, patente }] });
+    vehicle = client.vehiculos.find(v => v.motor.toLowerCase() === motor.toLowerCase() && (!numeroMotor || v.numeroMotor === numeroMotor));
+  }
+  if (!vehicle) throw new Error('No se pudo asociar el vehículo');
+  return { client, vehicle };
 }

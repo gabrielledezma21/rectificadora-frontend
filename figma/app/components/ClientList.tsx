@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Users as UsersIcon, Edit, Trash2, Car, Phone, Mail, MapPin, TrendingUp } from 'lucide-react';
-import { Client, getClients, saveClient, deleteClient } from '../clientStore';
-import { getOrders } from '../store';
+import { Client, cargarClientes, persistirCliente, borrarCliente } from '../clientStore';
+import { cargarOrdenes } from '../store';
 import { getClientFinancialStats } from '../clientStore';
 import { getCurrentUser } from '../auth';
 
@@ -11,6 +11,9 @@ export function ClientList() {
   const [currentUser] = useState(() => getCurrentUser());
   const isAdmin = currentUser?.role === 'admin';
   const [clients, setClients] = useState<Client[]>([]);
+  const [orders, setOrders] = useState<import('../types').WorkOrder[]>([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
@@ -24,9 +27,12 @@ export function ClientList() {
     loadClients();
   }, []);
 
-  const loadClients = () => {
-    setClients(getClients().sort((a, b) => a.nombre.localeCompare(b.nombre)));
-  };
+  async function loadClients() {
+    setLoading(true); setError('');
+    try { const [c, o] = await Promise.all([cargarClientes(), cargarOrdenes()]); setClients(c.sort((a, b) => a.nombre.localeCompare(b.nombre))); setOrders(o); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar los clientes'); }
+    finally { setLoading(false); }
+  }
 
   const handleOpenModal = (client?: Client) => {
     if (client) {
@@ -55,7 +61,7 @@ export function ClientList() {
     setFormData({ nombre: '', telefono: '', email: '', direccion: '' });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.nombre) {
@@ -64,7 +70,7 @@ export function ClientList() {
     }
 
     const client: Client = {
-      id: editingClient?.id || crypto.randomUUID(),
+      id: editingClient?.id || '',
       nombre: formData.nombre,
       telefono: formData.telefono,
       email: formData.email,
@@ -73,23 +79,21 @@ export function ClientList() {
       createdAt: editingClient?.createdAt || new Date().toISOString(),
     };
 
-    saveClient(client);
-    loadClients();
-    handleCloseModal();
+    try { await persistirCliente(client); await loadClients(); handleCloseModal(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar el cliente'); }
   };
 
-  const handleDelete = (clientId: string) => {
+  const handleDelete = async (clientId: string) => {
     if (confirm('¿Estás seguro de eliminar este cliente?')) {
-      deleteClient(clientId);
-      loadClients();
+      try { await borrarCliente(clientId); await loadClients(); }
+      catch (e) { setError(e instanceof Error ? e.message : 'No se pudo eliminar el cliente. Verificá que no tenga órdenes asociadas.'); }
     }
   };
-
-  const orders = getOrders();
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto">
+        {error && <div className="mb-5 bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">{error}</div>}
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -246,7 +250,7 @@ export function ClientList() {
           })}
         </div>
 
-        {clients.length === 0 && (
+        {!loading && clients.length === 0 && (
           <div className="bg-card border border-border rounded-lg p-12 text-center">
             <UsersIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2">No hay clientes registrados</h3>

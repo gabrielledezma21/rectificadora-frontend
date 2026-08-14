@@ -1,26 +1,41 @@
 import { useNavigate } from 'react-router';
 import { AlertTriangle, ArrowRight, Banknote, CheckCircle2, Clock3, Plus, Users, Wrench } from 'lucide-react';
-import { getOrders } from '../store';
-import { getClients } from '../clientStore';
-import { getAuditEntries } from '../audit';
+import type { LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { cargarOrdenes } from '../store';
+import { cargarClientes, type Client } from '../clientStore';
+import { cargarAuditoria, type AuditEntry } from '../audit';
 import { getCurrentUser } from '../auth';
+import type { WorkOrder } from '../types';
 
 const money = (value: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
 
 export function Dashboard() {
   const navigate = useNavigate();
   const user = getCurrentUser();
-  const orders = getOrders().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const clients = getClients();
-  const audit = getAuditEntries().slice(0, 5);
+  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [error, setError] = useState('');
+  const [now] = useState(() => Date.now());
+  useEffect(() => { Promise.all([cargarOrdenes(), cargarClientes(), user?.role === 'admin' ? cargarAuditoria() : Promise.resolve([])])
+    .then(([o, c, a]) => { setOrders(o.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())); setClients(c); setAudit(a.slice(0, 5)); })
+    .catch(e => setError(e instanceof Error ? e.message : 'No se pudieron cargar los datos')); }, [user?.role]);
   const active = orders.filter(o => o.estado !== 'finalizado');
   const finished = orders.filter(o => o.estado === 'finalizado');
   const pending = orders.reduce((sum, o) => sum + o.saldo, 0);
-  const overdue = active.filter(o => Date.now() - new Date(o.date).getTime() > 7 * 86400000);
+  const overdue = active.filter(o => now - new Date(o.date).getTime() > 7 * 86400000);
+  const cards: Array<{ label: string; value: string | number; note: string; Icon: LucideIcon; tone: string }> = [
+    { label: 'Órdenes activas', value: active.length, note: 'En recepción o proceso', Icon: Wrench, tone: 'text-blue-400' },
+    { label: 'Listas para entregar', value: finished.length, note: 'Trabajos finalizados', Icon: CheckCircle2, tone: 'text-green-400' },
+    { label: 'Saldo pendiente', value: money(pending), note: `${orders.filter(o => o.saldo > 0).length} órdenes con deuda`, Icon: Banknote, tone: 'text-yellow-400' },
+    { label: 'Clientes registrados', value: clients.length, note: `${clients.reduce((n, c) => n + c.vehiculos.length, 0)} vehículos asociados`, Icon: Users, tone: 'text-primary' },
+  ];
 
   return (
     <main className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto space-y-6">
+        {error && <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">{error}</div>}
         <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div>
             <div className="text-sm uppercase tracking-[0.18em] text-primary font-semibold mb-2">Panel general</div>
@@ -33,15 +48,10 @@ export function Dashboard() {
         </section>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[
-            ['Órdenes activas', active.length, 'En recepción o proceso', Wrench, 'text-blue-400'],
-            ['Listas para entregar', finished.length, 'Trabajos finalizados', CheckCircle2, 'text-green-400'],
-            ['Saldo pendiente', money(pending), `${orders.filter(o => o.saldo > 0).length} órdenes con deuda`, Banknote, 'text-yellow-400'],
-            ['Clientes registrados', clients.length, `${clients.reduce((n, c) => n + c.vehiculos.length, 0)} vehículos asociados`, Users, 'text-primary'],
-          ].map(([label, value, note, Icon, tone]) => (
-            <article key={String(label)} className="bg-card border border-border rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4"><span className="text-sm text-muted-foreground">{String(label)}</span><Icon className={`w-5 h-5 ${tone}`} /></div>
-              <div className="text-3xl font-bold font-mono">{String(value)}</div><p className="text-xs text-muted-foreground mt-2">{String(note)}</p>
+          {cards.map(({ label, value, note, Icon, tone }) => (
+            <article key={label} className="bg-card border border-border rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4"><span className="text-sm text-muted-foreground">{label}</span><Icon className={`w-5 h-5 ${tone}`} /></div>
+              <div className="text-3xl font-bold font-mono">{value}</div><p className="text-xs text-muted-foreground mt-2">{note}</p>
             </article>
           ))}
         </section>

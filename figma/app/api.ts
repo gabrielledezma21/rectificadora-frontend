@@ -38,10 +38,16 @@ export async function solicitarApi<T>(ruta: string, opciones: RequestInit = {}):
   if (!['GET', 'HEAD', 'OPTIONS'].includes(metodo)) encabezados.set('X-XSRF-TOKEN', await obtenerCsrf());
 
   const respuesta = await fetch(`${URL_API}${ruta}`, { ...opciones, headers: encabezados, credentials: 'include' });
-  if (respuesta.status === 401) limpiarSesionApi();
+  if (respuesta.status === 401) {
+    limpiarSesionApi();
+    sessionStorage.removeItem('motor_shop_current_user');
+    if (typeof window !== 'undefined' && window.location.hash !== '#/login') window.location.hash = '#/login';
+  }
   if (!respuesta.ok) {
+    if (respuesta.status === 403) sessionStorage.removeItem(CLAVE_CSRF);
     const error = await respuesta.json().catch(() => null) as { message?: string } | null;
-    throw new Error(error?.message || 'Ocurrió un error al comunicarse con el servidor');
+    const predeterminado = respuesta.status === 403 ? 'No tenés permisos para realizar esta acción' : 'Ocurrió un error al comunicarse con el servidor';
+    throw new Error(error?.message || predeterminado);
   }
   if (respuesta.status === 204) return undefined as T;
   return respuesta.json() as Promise<T>;

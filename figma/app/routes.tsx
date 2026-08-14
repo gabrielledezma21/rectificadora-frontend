@@ -1,4 +1,4 @@
-import { createHashRouter, Navigate } from "react-router";
+import { createHashRouter } from "react-router";
 import { RootLayout } from "./components/RootLayout";
 import { OrderList } from "./components/OrderList";
 import { CreateOrder } from "./components/CreateOrder";
@@ -10,6 +10,7 @@ import { ClientList } from "./components/ClientList";
 import { Dashboard } from "./components/Dashboard";
 import { ActivityLog } from "./components/ActivityLog";
 import { DataTools } from "./components/DataTools";
+import { CatalogManagement } from "./components/CatalogManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const createAppRouter = () => createHashRouter([
@@ -84,6 +85,10 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "actividad",
         element: <ProtectedRoute requireAdmin><ActivityLog /></ProtectedRoute>,
+      },
+      {
+        path: "catalogo",
+        element: <ProtectedRoute requireAdmin><CatalogManagement /></ProtectedRoute>,
       },
       {
         path: "respaldos",

@@ -1,5 +1,7 @@
 import { WorkOrder } from './types';
 import { logActivity } from './audit';
+import { apiConfigurada } from './api';
+import { guardarOrdenApi, listarOrdenes, obtenerOrden, registrarPagoApi } from './serviciosApi';
 
 const STORAGE_KEY = 'motor_shop_orders';
 
@@ -35,4 +37,28 @@ export function generateOrderNumber(): string {
     return Math.max(max, num);
   }, 0);
   return `OT-${String(maxNumber + 1).padStart(5, '0')}`;
+}
+
+export async function cargarOrdenes(): Promise<WorkOrder[]> {
+  return apiConfigurada ? listarOrdenes() : getOrders();
+}
+
+export async function cargarOrden(id: string): Promise<WorkOrder | undefined> {
+  return apiConfigurada ? obtenerOrden(id) : getOrderById(id);
+}
+
+export async function persistirOrden(order: WorkOrder): Promise<WorkOrder> {
+  if (apiConfigurada) return guardarOrdenApi(order);
+  saveOrder(order);
+  return order;
+}
+
+export async function registrarPago(order: WorkOrder, amount: number, method: import('./types').Payment['method'], details: string): Promise<WorkOrder> {
+  if (apiConfigurada) return registrarPagoApi(order.id, amount, method, details);
+  const updatedOrder = {
+    ...order, sena: order.sena + amount, saldo: order.saldo - amount,
+    payments: [...(order.payments || []), { id: crypto.randomUUID(), date: new Date().toISOString(), amount, method, details }],
+  };
+  saveOrder(updatedOrder);
+  return updatedOrder;
 }

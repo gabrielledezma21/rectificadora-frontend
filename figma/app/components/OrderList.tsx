@@ -2,19 +2,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, Eye, Edit, Wrench, Filter, DollarSign, CheckCircle2, BarChart3, Users, Shield } from 'lucide-react';
 import { WorkOrder } from '../types';
-import { getOrders, saveOrder } from '../store';
+import { cargarOrdenes, registrarPago } from '../store';
 import { getCurrentUser } from '../auth';
 
 const ESTADO_COLORS = {
   recepcion: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   'en-proceso': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   finalizado: 'bg-green-500/20 text-green-400 border-green-500/30',
+  entregado: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  cancelado: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
 const ESTADO_LABELS = {
   recepcion: 'Recepción',
   'en-proceso': 'En Proceso',
   finalizado: 'Finalizado',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
 };
 
 export function OrderList() {
@@ -22,6 +26,8 @@ export function OrderList() {
   const [currentUser] = useState(() => getCurrentUser());
   const isAdmin = currentUser?.role === 'admin';
   const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('all');
   const [paymentModal, setPaymentModal] = useState<{ show: boolean; order: WorkOrder | null }>({
@@ -37,8 +43,10 @@ export function OrderList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadOrders = () => {
-    let loadedOrders = getOrders();
+  async function loadOrders() {
+    setLoading(true); setError('');
+    try {
+    let loadedOrders = await cargarOrdenes();
 
     // Si es usuario (no admin), filtrar solo órdenes del mes actual
     if (!isAdmin) {
@@ -52,11 +60,13 @@ export function OrderList() {
       });
     }
 
-    loadedOrders.sort((a, b) =>
+    loadedOrders = loadedOrders.toSorted((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
     setOrders(loadedOrders);
-  };
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar las órdenes'); }
+    finally { setLoading(false); }
+  }
 
   const handleOpenPayment = (order: WorkOrder) => {
     setPaymentModal({ show: true, order });
@@ -65,7 +75,7 @@ export function OrderList() {
     setPaymentDetails('');
   };
 
-  const handleRegisterPayment = () => {
+  const handleRegisterPayment = async () => {
     if (!paymentModal.order) return;
 
     const amount = parseFloat(paymentAmount) || 0;
@@ -74,27 +84,10 @@ export function OrderList() {
       return;
     }
 
-    const newPayment = {
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
-      amount,
-      method: paymentMethod,
-      details: paymentDetails,
-    };
-
-    const updatedOrder = {
-      ...paymentModal.order,
-      sena: paymentModal.order.sena + amount,
-      saldo: paymentModal.order.saldo - amount,
-      payments: [...(paymentModal.order.payments || []), newPayment],
-    };
-
-    saveOrder(updatedOrder);
-    loadOrders();
-    setPaymentModal({ show: false, order: null });
-    setPaymentAmount('');
-    setPaymentMethod('efectivo');
-    setPaymentDetails('');
+    try {
+      await registrarPago(paymentModal.order, amount, paymentMethod, paymentDetails);
+      await loadOrders(); setPaymentModal({ show: false, order: null }); setPaymentAmount(''); setPaymentMethod('efectivo'); setPaymentDetails('');
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo registrar el pago'); }
   };
 
   const filteredOrders = orders.filter(order => {
@@ -111,6 +104,7 @@ export function OrderList() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto">
+        {error && <div className="mb-5 bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">{error}</div>}
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -197,6 +191,8 @@ export function OrderList() {
                 <option value="recepcion">Recepción</option>
                 <option value="en-proceso">En Proceso</option>
                 <option value="finalizado">Finalizado</option>
+                <option value="entregado">Entregado</option>
+                <option value="cancelado">Cancelado</option>
               </select>
             </div>
           </div>
@@ -229,7 +225,7 @@ export function OrderList() {
         </div>
 
         {/* Orders Table */}
-        {filteredOrders.length === 0 ? (
+        {!loading && filteredOrders.length === 0 ? (
           <div className="bg-card border border-border rounded-lg p-12 text-center">
             <Wrench className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2">No se encontraron órdenes</h3>
@@ -401,7 +397,7 @@ export function OrderList() {
                 <label className="block text-sm text-muted-foreground mb-2">Método de Pago *</label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  onChange={(e) => setPaymentMethod(e.target.value as import('../types').Payment['method'])}
                   className="w-full bg-input px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="efectivo">Efectivo</option>

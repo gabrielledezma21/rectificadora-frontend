@@ -1,18 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Activity, BarChart3, Database, Home, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
+import { Activity, BarChart3, Database, Home, ListChecks, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
 import { getCurrentUser, logout } from '../auth';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(() => getCurrentUser());
+  const user = getCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    // Actualizar el usuario cuando cambie la ubicación
-    setUser(getCurrentUser());
-  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -29,6 +24,7 @@ export function Header() {
     ...(user.role === 'admin' ? [
       { label: 'Estadísticas', path: '/estadisticas', icon: BarChart3 },
       { label: 'Actividad', path: '/actividad', icon: Activity },
+      { label: 'Catálogo', path: '/catalogo', icon: ListChecks },
       { label: 'Respaldos', path: '/respaldos', icon: Database },
     ] : []),
   ];

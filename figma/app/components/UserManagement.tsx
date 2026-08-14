@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Edit, Trash2, Users, Shield, User as UserIcon } from 'lucide-react';
 import { User } from '../types';
-import { getUsers, saveUser, deleteUser, getCurrentUser } from '../auth';
+import { getCurrentUser } from '../auth';
+import { eliminarUsuarioApi, guardarUsuarioApi, listarUsuarios } from '../serviciosApi';
 
 export function UserManagement() {
   const navigate = useNavigate();
   const [currentUser] = useState(() => getCurrentUser());
   const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -23,11 +25,12 @@ export function UserManagement() {
       return;
     }
     loadUsers();
-  }, [navigate]);
+  }, [navigate, currentUser]);
 
-  const loadUsers = () => {
-    setUsers(getUsers());
-  };
+  async function loadUsers() {
+    try { setUsers(await listarUsuarios()); setError(''); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar los usuarios'); }
+  }
 
   const handleOpenModal = (user?: User) => {
     if (user) {
@@ -56,7 +59,7 @@ export function UserManagement() {
     setFormData({ email: '', password: '', name: '', role: 'usuario' });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.email || !formData.name) {
@@ -70,34 +73,35 @@ export function UserManagement() {
     }
 
     const user: User = {
-      id: editingUser?.id || crypto.randomUUID(),
+      id: editingUser?.id || '',
       email: formData.email,
       password: formData.password || editingUser?.password || '',
       name: formData.name,
       role: formData.role,
       createdAt: editingUser?.createdAt || new Date().toISOString(),
+      active: editingUser?.active ?? true,
     };
 
-    saveUser(user);
-    loadUsers();
-    handleCloseModal();
+    try { await guardarUsuarioApi(user); await loadUsers(); handleCloseModal(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo guardar el usuario'); }
   };
 
-  const handleDelete = (userId: string) => {
+  const handleDelete = async (userId: string) => {
     if (userId === currentUser?.id) {
       alert('No puedes eliminar tu propio usuario');
       return;
     }
 
     if (confirm('¿Estás seguro de eliminar este usuario?')) {
-      deleteUser(userId);
-      loadUsers();
+      try { await eliminarUsuarioApi(userId); await loadUsers(); }
+      catch (e) { setError(e instanceof Error ? e.message : 'No se pudo eliminar el usuario'); }
     }
   };
 
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1200px] mx-auto">
+        {error && <div className="mb-5 bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">{error}</div>}
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
