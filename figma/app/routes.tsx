@@ -14,6 +14,7 @@ import { CatalogManagement } from "./components/CatalogManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { TableroTaller } from "./components/TableroTaller";
 import { HistorialTareasEmpleado } from "./components/HistorialTareasEmpleado";
+import { DocumentacionApi } from "./components/DocumentacionApi";
 
 export const createAppRouter = () => createHashRouter([
   {
@@ -103,6 +104,10 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "respaldos",
         element: <ProtectedRoute requireAdmin><DataTools /></ProtectedRoute>,
+      },
+      {
+        path: "documentacion-api",
+        element: <ProtectedRoute requireAdmin><DocumentacionApi /></ProtectedRoute>,
       },
     ],
   },
