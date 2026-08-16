@@ -12,7 +12,7 @@ import { ActivityLog } from "./components/ActivityLog";
 import { DataTools } from "./components/DataTools";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { WorkshopBoard } from "./components/WorkshopBoard";
+import { TableroTaller } from "./components/TableroTaller";
 import { HistorialTareasEmpleado } from "./components/HistorialTareasEmpleado";
 
 export const createAppRouter = () => createHashRouter([
@@ -34,7 +34,7 @@ export const createAppRouter = () => createHashRouter([
       },
       {
         path: "taller",
-        element: <ProtectedRoute><WorkshopBoard /></ProtectedRoute>,
+        element: <ProtectedRoute><TableroTaller /></ProtectedRoute>,
       },
       {
         path: "mi-historial",
