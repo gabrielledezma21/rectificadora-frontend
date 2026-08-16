@@ -25,6 +25,7 @@ export function OrderList() {
   const navigate = useNavigate();
   const [currentUser] = useState(() => getCurrentUser());
   const isAdmin = currentUser?.role === 'admin';
+  const canPay = isAdmin || Boolean(currentUser?.permissions?.includes('PAGOS_REGISTRAR'));
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -314,7 +315,7 @@ export function OrderList() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        {isAdmin && order.saldo > 0 && (
+                        {canPay && order.saldo > 0 && (
                           <button
                             onClick={() => handleOpenPayment(order)}
                             className="p-2 hover:bg-green-500/10 text-green-400 rounded-md transition-colors"
@@ -330,7 +331,7 @@ export function OrderList() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {isAdmin && (
+                        {(isAdmin || currentUser?.permissions?.includes('ORDENES_GESTIONAR')) && (
                           <button
                             onClick={() => navigate(`/editar/${order.id}`)}
                             className="p-2 hover:bg-secondary rounded-md transition-colors"
@@ -401,10 +402,10 @@ export function OrderList() {
                   className="w-full bg-input px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="efectivo">Efectivo</option>
-                  <option value="transferencia">Transferencia</option>
-                  <option value="tarjeta">Tarjeta</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="otro">Otro</option>
+                  {isAdmin && <option value="transferencia">Transferencia</option>}
+                  {isAdmin && <option value="tarjeta">Tarjeta</option>}
+                  {isAdmin && <option value="cheque">Cheque</option>}
+                  {isAdmin && <option value="otro">Otro</option>}
                 </select>
               </div>
 

@@ -25,19 +25,19 @@ export const createAppRouter = () => createHashRouter([
       {
         index: true,
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute permission="ORDENES_GESTIONAR">
             <Dashboard />
           </ProtectedRoute>
         ),
       },
       {
         path: "ordenes",
-        element: <ProtectedRoute><OrderList /></ProtectedRoute>,
+        element: <ProtectedRoute permission="ORDENES_GESTIONAR"><OrderList /></ProtectedRoute>,
       },
       {
         path: "crear",
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute permission="ORDENES_GESTIONAR">
             <CreateOrder />
           </ProtectedRoute>
         ),
@@ -45,7 +45,7 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "orden/:id",
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute permission="ORDENES_GESTIONAR">
             <PrintOrder />
           </ProtectedRoute>
         ),
@@ -53,7 +53,7 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "editar/:id",
         element: (
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute permission="ORDENES_GESTIONAR">
             <CreateOrder />
           </ProtectedRoute>
         ),
@@ -77,7 +77,7 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "clientes",
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute permission="CLIENTES_DATOS_BASICOS">
             <ClientList />
           </ProtectedRoute>
         ),
@@ -88,7 +88,7 @@ export const createAppRouter = () => createHashRouter([
       },
       {
         path: "catalogo",
-        element: <ProtectedRoute requireAdmin><CatalogManagement /></ProtectedRoute>,
+        element: <ProtectedRoute permission="CATALOGO_GESTIONAR"><CatalogManagement /></ProtectedRoute>,
       },
       {
         path: "respaldos",

@@ -21,10 +21,10 @@ export function Header() {
     { label: 'Inicio', path: '/', icon: Home },
     { label: 'Órdenes', path: '/ordenes', icon: Wrench },
     { label: 'Clientes', path: '/clientes', icon: Users },
+    ...(user.role === 'admin' || user.permissions?.includes('CATALOGO_GESTIONAR') ? [{ label: 'Catálogo', path: '/catalogo', icon: ListChecks }] : []),
     ...(user.role === 'admin' ? [
       { label: 'Estadísticas', path: '/estadisticas', icon: BarChart3 },
       { label: 'Actividad', path: '/actividad', icon: Activity },
-      { label: 'Catálogo', path: '/catalogo', icon: ListChecks },
       { label: 'Respaldos', path: '/respaldos', icon: Database },
     ] : []),
   ];
@@ -52,7 +52,7 @@ export function Header() {
                 : 'bg-secondary text-foreground'
             }`}
           >
-            {user.role === 'admin' ? 'Admin' : 'Usuario'}
+            {user.role === 'admin' ? 'Dueño / Administrador' : 'Administrativo'}
           </span>
         </div>
 

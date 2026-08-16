@@ -1,3 +1,9 @@
+export type Permission =
+  | 'ORDENES_GESTIONAR' | 'CLIENTES_DATOS_BASICOS' | 'CLIENTES_VER_HISTORIAL'
+  | 'CATALOGO_GESTIONAR' | 'PAGOS_REGISTRAR' | 'FINANZAS_VER'
+  | 'ESTADISTICAS_VER' | 'AUDITORIA_VER' | 'USUARIOS_GESTIONAR'
+  | 'RESPALDOS_GESTIONAR';
+
 export interface User {
   id: string;
   email: string;
@@ -6,6 +12,7 @@ export interface User {
   name: string;
   createdAt: string;
   active?: boolean;
+  permissions: Permission[];
 }
 
 export interface Payment {
@@ -14,6 +21,10 @@ export interface Payment {
   amount: number;
   method: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque' | 'otro';
   details: string;
+  registeredBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancellationReason?: string;
 }
 
 export interface WorkOrder {
