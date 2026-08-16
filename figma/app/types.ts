@@ -58,42 +58,49 @@ export interface WorkOrder {
   payments: Payment[];
   metodoPago?: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque' | 'otro';
   observacionesPago?: string;
-  tareas?: WorkTask[];
+  tareas?: TareaTaller[];
 }
 
-export type WorkTaskStatus = 'DISPONIBLE' | 'ASIGNADA' | 'ACEPTADA' | 'EN_PROCESO' | 'PENDIENTE' | 'FINALIZADA';
-export type WorkTaskAction = 'CREADA' | 'ASIGNADA' | 'REASIGNADA' | 'LIBERADA' | 'ACEPTADA' | 'INICIADA' | 'PAUSADA' | 'RETOMADA' | 'FINALIZADA' | 'REABIERTA';
+export type EstadoTareaTaller = 'DISPONIBLE' | 'ASIGNADA' | 'ACEPTADA' | 'EN_PROCESO' | 'PENDIENTE' | 'FINALIZADA';
+export type AccionTareaTaller = 'CREADA' | 'ASIGNADA' | 'REASIGNADA' | 'LIBERADA' | 'ACEPTADA' | 'INICIADA' | 'PAUSADA' | 'RETOMADA' | 'FINALIZADA' | 'REABIERTA';
 
-export interface WorkTaskHistory {
-  occurredAt: string;
-  action: WorkTaskAction;
+export interface HistorialTareaTaller {
+  fecha: string;
+  accion: AccionTareaTaller;
   actor: string;
-  employeeId?: string;
-  employeeName?: string;
-  comment?: string;
+  idEmpleado?: string;
+  nombreEmpleado?: string;
+  comentario?: string;
 }
 
-export interface WorkTask {
+export interface TareaTaller {
   id: string;
-  description: string;
-  category: 'BLOCK' | 'REPUESTO' | 'TAPA' | 'CIGUENAL' | 'OTRO';
-  status: WorkTaskStatus;
-  assignedEmployee?: { id: string; name: string };
-  technicalNotes?: string;
-  history: WorkTaskHistory[];
-  unitPrice?: number;
-  quantity?: number;
+  descripcion: string;
+  categoria: 'BLOCK' | 'REPUESTO' | 'TAPA' | 'CIGUENAL' | 'OTRO';
+  estado: EstadoTareaTaller;
+  empleadoAsignado?: { id: string; nombre: string };
+  notasTecnicas?: string;
+  historial: HistorialTareaTaller[];
+  precioUnitario?: number;
+  cantidad?: number;
 }
 
-export interface WorkshopOrder {
+export interface VehiculoTaller {
   id: string;
-  orderNumber: string;
-  status: 'RECEPCION' | 'EN_PROCESO';
-  vehicle?: { id: string; description: string; engineNumber?: string; licensePlate?: string };
-  cylinders?: number;
-  finalMeasure?: string;
-  receptionDescription?: string;
-  tasks: WorkTask[];
+  descripcion: string;
+  numeroMotor?: string;
+  patente?: string;
+}
+
+export interface OrdenTaller {
+  id: string;
+  numeroOrden: string;
+  estado: 'RECEPCION' | 'EN_PROCESO';
+  vehiculo?: VehiculoTaller;
+  cilindros?: number;
+  medidaFinal?: string;
+  descripcionRecepcion?: string;
+  tareas: TareaTaller[];
 }
 
 export interface TaskWithPrice {
