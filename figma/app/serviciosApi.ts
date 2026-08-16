@@ -1,5 +1,5 @@
 import { solicitarApi } from './api';
-import { TRABAJOS_BLOCK, REPUESTOS, TRABAJOS_TAPA, TRABAJOS_CIGUENAL, type Payment, type User, type WorkOrder } from './types';
+import { TRABAJOS_BLOCK, REPUESTOS, TRABAJOS_TAPA, TRABAJOS_CIGUENAL, type Payment, type Permission, type User, type WorkOrder } from './types';
 import type { Client } from './clientStore';
 import type { AuditEntry } from './audit';
 
@@ -10,7 +10,7 @@ type MetodoPagoApi = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE' | 'OTRO
 interface VehiculoApi { id: string; description: string; engineNumber?: string; licensePlate?: string }
 interface ClienteApi { id: string; name: string; phone?: string; email?: string; address?: string; createdAt: string; vehicles: VehiculoApi[] }
 interface ItemApi { id: string; description: string; category: CategoriaApi; unitPrice: number; quantity: number; catalogTask?: { id: string } }
-interface PagoApi { id: string; paidAt: string; amount: number; method: MetodoPagoApi; details?: string }
+interface PagoApi { id: string; paidAt: string; amount: number; method: MetodoPagoApi; details?: string; registeredBy?: string; cancelledAt?: string; cancelledBy?: string; cancellationReason?: string }
 export interface TareaCatalogo { id: string; name: string; category: CategoriaApi; price: number; active: boolean }
 interface OrdenApi {
   id: string; orderNumber: string; createdAt: string; promisedDate?: string;
@@ -53,7 +53,7 @@ export function adaptarOrden(orden: OrdenApi): WorkOrder {
     total: Number(orden.total), sena: Number(orden.paid), saldo: Number(orden.balance),
     trabajosBlock: grupos.BLOCK, repuestos: grupos.REPUESTO, trabajosTapa: grupos.TAPA,
     trabajosCiguenal: grupos.CIGUENAL, descripcionRecepcion: orden.receptionDescription || '',
-    payments: (orden.payments || []).map(p => ({ id: p.id, date: p.paidAt, amount: Number(p.amount), method: metodoDesdeApi[p.method], details: p.details || '' })),
+    payments: (orden.payments || []).map(p => ({ id: p.id, date: p.paidAt, amount: Number(p.amount), method: metodoDesdeApi[p.method], details: p.details || '', registeredBy: p.registeredBy, cancelledAt: p.cancelledAt, cancelledBy: p.cancelledBy, cancellationReason: p.cancellationReason })),
   };
 }
 
@@ -143,16 +143,16 @@ export async function listarAuditoria(): Promise<AuditEntry[]> {
   return datos.map(a => ({ id: a.id, date: a.occurredAt, user: a.username, action: a.action, detail: a.detail || '', category: categoriaAuditoria(a.entityType) }));
 }
 
-interface UsuarioApi { id: string; name: string; email: string; role: 'ADMIN' | 'OPERADOR'; active: boolean; createdAt: string }
+interface UsuarioApi { id: string; name: string; email: string; role: 'ADMIN' | 'OPERADOR'; permissions: Permission[]; active: boolean; createdAt: string }
 export async function listarUsuarios(): Promise<User[]> {
   const datos = await solicitarApi<UsuarioApi[]>('/users');
-  return datos.map(u => ({ id: u.id, name: u.name, email: u.email, password: '', role: u.role === 'ADMIN' ? 'admin' : 'usuario', active: u.active, createdAt: u.createdAt }));
+  return datos.map(u => ({ id: u.id, name: u.name, email: u.email, password: '', role: u.role === 'ADMIN' ? 'admin' : 'usuario', permissions: u.permissions || [], active: u.active, createdAt: u.createdAt }));
 }
 export async function guardarUsuarioApi(usuario: User): Promise<User> {
   const existe = Boolean(usuario.id);
-  const cuerpo = { name: usuario.name, email: usuario.email, password: usuario.password || null, role: usuario.role === 'admin' ? 'ADMIN' : 'OPERADOR', active: usuario.active ?? true };
+  const cuerpo = { name: usuario.name, email: usuario.email, password: usuario.password || null, role: usuario.role === 'admin' ? 'ADMIN' : 'OPERADOR', permissions: usuario.permissions || [], active: usuario.active ?? true };
   const dato = await solicitarApi<UsuarioApi>(existe ? `/users/${usuario.id}` : '/users', { method: existe ? 'PUT' : 'POST', body: JSON.stringify(cuerpo) });
-  return { id: dato.id, name: dato.name, email: dato.email, password: '', role: dato.role === 'ADMIN' ? 'admin' : 'usuario', active: dato.active, createdAt: dato.createdAt };
+  return { id: dato.id, name: dato.name, email: dato.email, password: '', role: dato.role === 'ADMIN' ? 'admin' : 'usuario', permissions: dato.permissions || [], active: dato.active, createdAt: dato.createdAt };
 }
 export const eliminarUsuarioApi = (id: string) => solicitarApi<void>(`/users/${id}`, { method: 'DELETE' });
 

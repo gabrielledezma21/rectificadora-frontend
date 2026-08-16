@@ -10,6 +10,8 @@ export function ClientList() {
   const navigate = useNavigate();
   const [currentUser] = useState(() => getCurrentUser());
   const isAdmin = currentUser?.role === 'admin';
+  const canHistory = isAdmin || Boolean(currentUser?.permissions?.includes('CLIENTES_VER_HISTORIAL'));
+  const canFinance = isAdmin || Boolean(currentUser?.permissions?.includes('FINANZAS_VER'));
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<import('../types').WorkOrder[]>([]);
   const [error, setError] = useState('');
@@ -29,7 +31,7 @@ export function ClientList() {
 
   async function loadClients() {
     setLoading(true); setError('');
-    try { const [c, o] = await Promise.all([cargarClientes(), cargarOrdenes()]); setClients(c.sort((a, b) => a.nombre.localeCompare(b.nombre))); setOrders(o); }
+    try { const [c, o] = await Promise.all([cargarClientes(), canHistory ? cargarOrdenes() : Promise.resolve([])]); setClients(c.sort((a, b) => a.nombre.localeCompare(b.nombre))); setOrders(o); }
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar los clientes'); }
     finally { setLoading(false); }
   }
@@ -177,13 +179,13 @@ export function ClientList() {
                     >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button
+                    {isAdmin && <button
                       onClick={() => handleDelete(client.id)}
                       className="p-2 hover:bg-destructive/10 text-destructive rounded-md transition-colors"
                       title="Eliminar cliente"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </button>}
                   </div>
                 </div>
 
@@ -213,7 +215,7 @@ export function ClientList() {
                 )}
 
                 {/* Financial Stats (Solo Admin) */}
-                {isAdmin && stats.ordersCount > 0 && (
+                {canFinance && stats.ordersCount > 0 && (
                   <div className="border-t border-border pt-4">
                     <div className="flex items-center gap-2 text-sm font-semibold mb-3">
                       <TrendingUp className="w-4 h-4 text-primary" />
@@ -295,7 +297,7 @@ export function ClientList() {
                 />
               </div>
 
-              <div>
+              {canHistory && <div>
                 <label className="block text-sm text-muted-foreground mb-2">Email</label>
                 <input
                   type="email"
@@ -304,9 +306,9 @@ export function ClientList() {
                   className="w-full bg-input px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="cliente@ejemplo.com"
                 />
-              </div>
+              </div>}
 
-              <div>
+              {canHistory && <div>
                 <label className="block text-sm text-muted-foreground mb-2">Dirección</label>
                 <textarea
                   value={formData.direccion}
@@ -315,7 +317,7 @@ export function ClientList() {
                   rows={2}
                   placeholder="Calle, número, localidad"
                 />
-              </div>
+              </div>}
 
               <div className="flex gap-3 pt-4">
                 <button

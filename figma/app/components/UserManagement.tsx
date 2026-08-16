@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Edit, Trash2, Users, Shield, User as UserIcon } from 'lucide-react';
-import { User } from '../types';
+import { type Permission, type User } from '../types';
 import { getCurrentUser } from '../auth';
 import { eliminarUsuarioApi, guardarUsuarioApi, listarUsuarios } from '../serviciosApi';
+
+const PERMISOS: Array<{ value: Permission; label: string }> = [
+  { value: 'ORDENES_GESTIONAR', label: 'Crear y gestionar órdenes' },
+  { value: 'CLIENTES_DATOS_BASICOS', label: 'Ver y editar datos básicos de clientes' },
+  { value: 'CATALOGO_GESTIONAR', label: 'Crear y modificar el catálogo' },
+  { value: 'PAGOS_REGISTRAR', label: 'Registrar cobros en efectivo' },
+];
+
+const PERMISOS_ADMINISTRATIVO: Permission[] = [
+  'ORDENES_GESTIONAR', 'CLIENTES_DATOS_BASICOS', 'CATALOGO_GESTIONAR', 'PAGOS_REGISTRAR',
+];
 
 export function UserManagement() {
   const navigate = useNavigate();
@@ -17,6 +28,8 @@ export function UserManagement() {
     password: '',
     name: '',
     role: 'usuario' as 'admin' | 'usuario',
+    permissions: PERMISOS_ADMINISTRATIVO,
+    active: true,
   });
 
   useEffect(() => {
@@ -40,6 +53,8 @@ export function UserManagement() {
         password: '',
         name: user.name,
         role: user.role,
+        permissions: user.permissions || [],
+        active: user.active ?? true,
       });
     } else {
       setEditingUser(null);
@@ -48,6 +63,8 @@ export function UserManagement() {
         password: '',
         name: '',
         role: 'usuario',
+        permissions: PERMISOS_ADMINISTRATIVO,
+        active: true,
       });
     }
     setShowModal(true);
@@ -56,7 +73,7 @@ export function UserManagement() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingUser(null);
-    setFormData({ email: '', password: '', name: '', role: 'usuario' });
+    setFormData({ email: '', password: '', name: '', role: 'usuario', permissions: PERMISOS_ADMINISTRATIVO, active: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,8 +95,9 @@ export function UserManagement() {
       password: formData.password || editingUser?.password || '',
       name: formData.name,
       role: formData.role,
+      permissions: formData.role === 'admin' ? PERMISOS.map(p => p.value) : formData.permissions,
       createdAt: editingUser?.createdAt || new Date().toISOString(),
-      active: editingUser?.active ?? true,
+      active: formData.active,
     };
 
     try { await guardarUsuarioApi(user); await loadUsers(); handleCloseModal(); }
@@ -176,7 +194,7 @@ export function UserManagement() {
                           : 'bg-secondary text-foreground border-border'
                       }`}
                     >
-                      {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+                      {user.role === 'admin' ? 'Dueño / Administrador' : 'Administrativo'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -229,13 +247,13 @@ export function UserManagement() {
           <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-3">
               <UserIcon className="w-6 h-6 text-muted-foreground" />
-              <h3 className="text-lg font-semibold">Rol Usuario</h3>
+              <h3 className="text-lg font-semibold">Rol Administrativo</h3>
             </div>
             <ul className="text-sm text-muted-foreground space-y-2">
               <li>• Crear nuevas órdenes de trabajo</li>
-              <li>• Ver historial del mes actual</li>
-              <li>• Ver detalles de órdenes</li>
-              <li>• Imprimir órdenes</li>
+              <li>• Consultar datos básicos de clientes</li>
+              <li>• Registrar cobros en efectivo</li>
+              <li>• Gestionar el catálogo de trabajos</li>
             </ul>
           </div>
         </div>
@@ -299,10 +317,29 @@ export function UserManagement() {
                   }
                   className="w-full bg-input px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="usuario">Usuario</option>
-                  <option value="admin">Administrador</option>
+                  <option value="usuario">Administrativo</option>
+                  <option value="admin">Dueño / Administrador</option>
                 </select>
               </div>
+
+              {formData.role === 'usuario' ? <fieldset className="border border-border rounded-md p-4">
+                <legend className="px-2 text-sm font-semibold">Permisos específicos</legend>
+                <div className="space-y-3 mt-2">
+                  {PERMISOS.map(permiso => <label key={permiso.value} className="flex items-start gap-3 text-sm">
+                    <input type="checkbox" className="mt-0.5" checked={formData.permissions.includes(permiso.value)}
+                      onChange={e => setFormData({ ...formData, permissions: e.target.checked
+                        ? [...formData.permissions, permiso.value]
+                        : formData.permissions.filter(p => p !== permiso.value) })} />
+                    <span>{permiso.label}</span>
+                  </label>)}
+                </div>
+              </fieldset> : <p className="text-sm text-muted-foreground bg-primary/10 border border-primary/20 rounded-md p-3">El administrador tiene acceso completo a todos los módulos.</p>}
+
+              <label className="flex items-center gap-3 text-sm">
+                <input type="checkbox" checked={formData.active}
+                  onChange={e => setFormData({ ...formData, active: e.target.checked })} />
+                Usuario activo
+              </label>
 
               <div className="flex gap-3 pt-4">
                 <button
