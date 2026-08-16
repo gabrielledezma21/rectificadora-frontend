@@ -28,7 +28,6 @@ export function WorkshopBoard() {
   const isEmployee = currentUser?.role === 'empleado';
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [workshopOrders, users] = await Promise.all([listarOrdenesTaller(), isAdmin ? listarUsuarios() : Promise.resolve([])]);
       setOrders(workshopOrders);
@@ -63,7 +62,7 @@ export function WorkshopBoard() {
   const assign = (task: WorkTask, employeeId: string) => void run(task.id, () => asignarTareaApi(task.id, employeeId || null));
 
   return <main className="min-h-screen bg-background px-4 py-5 sm:p-6"><div className="mx-auto max-w-6xl">
-    <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="flex items-center gap-3 text-3xl font-semibold"><Wrench className="h-8 w-8 text-primary" />Tablero del taller</h1><p className="mt-1 text-sm text-muted-foreground">Órdenes recibidas y en proceso · una tarea activa por empleado</p></div><button onClick={() => void load()} disabled={loading} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button></header>
+    <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="flex items-center gap-3 text-3xl font-semibold"><Wrench className="h-8 w-8 text-primary" />Tablero del taller</h1><p className="mt-1 text-sm text-muted-foreground">Órdenes recibidas y en proceso · una tarea activa por empleado</p></div><button onClick={() => { setLoading(true); void load(); }} disabled={loading} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button></header>
     {activeTaskId && isEmployee ? <div className="mb-5 rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm">Tenés una tarea activa. Para tomar otra, primero finalizala o dejala pendiente.</div> : null}
     {error ? <div role="alert" className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">{error}</div> : null}
     {!loading && orders.length === 0 ? <div className="rounded-xl border border-border bg-card p-10 text-center text-muted-foreground">No hay órdenes en recepción o en proceso.</div> : null}
