@@ -18,9 +18,12 @@ export function Header() {
   if (!user || location.pathname === '/login') return null;
 
   const navItems = [
-    { label: 'Inicio', path: '/', icon: Home },
-    { label: 'Órdenes', path: '/ordenes', icon: Wrench },
-    { label: 'Clientes', path: '/clientes', icon: Users },
+    ...(user.role === 'empleado' ? [] : [{ label: 'Inicio', path: '/', icon: Home }]),
+    { label: 'Taller', path: '/taller', icon: Wrench },
+    ...(user.role === 'empleado' ? [] : [
+      { label: 'Órdenes', path: '/ordenes', icon: Wrench },
+      { label: 'Clientes', path: '/clientes', icon: Users },
+    ]),
     ...(user.role === 'admin' || user.permissions?.includes('CATALOGO_GESTIONAR') ? [{ label: 'Catálogo', path: '/catalogo', icon: ListChecks }] : []),
     ...(user.role === 'admin' ? [
       { label: 'Estadísticas', path: '/estadisticas', icon: BarChart3 },
@@ -52,7 +55,7 @@ export function Header() {
                 : 'bg-secondary text-foreground'
             }`}
           >
-            {user.role === 'admin' ? 'Dueño / Administrador' : 'Administrativo'}
+            {user.role === 'admin' ? 'Dueño / Administrador' : user.role === 'empleado' ? 'Empleado del taller' : 'Administrativo'}
           </span>
         </div>
 

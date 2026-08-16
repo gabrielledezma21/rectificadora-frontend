@@ -12,6 +12,7 @@ import { ActivityLog } from "./components/ActivityLog";
 import { DataTools } from "./components/DataTools";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { WorkshopBoard } from "./components/WorkshopBoard";
 
 export const createAppRouter = () => createHashRouter([
   {
@@ -29,6 +30,10 @@ export const createAppRouter = () => createHashRouter([
             <Dashboard />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "taller",
+        element: <ProtectedRoute><WorkshopBoard /></ProtectedRoute>,
       },
       {
         path: "ordenes",

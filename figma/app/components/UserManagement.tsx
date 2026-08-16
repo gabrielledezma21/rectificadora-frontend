@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Plus, Edit, Trash2, Users, Shield, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Users, Shield, User as UserIcon, Wrench } from 'lucide-react';
 import { type Permission, type User } from '../types';
 import { getCurrentUser } from '../auth';
 import { eliminarUsuarioApi, guardarUsuarioApi, listarUsuarios } from '../serviciosApi';
@@ -27,7 +27,7 @@ export function UserManagement() {
     email: '',
     password: '',
     name: '',
-    role: 'usuario' as 'admin' | 'usuario',
+    role: 'usuario' as User['role'],
     permissions: PERMISOS_ADMINISTRATIVO,
     active: true,
   });
@@ -95,7 +95,7 @@ export function UserManagement() {
       password: formData.password || editingUser?.password || '',
       name: formData.name,
       role: formData.role,
-      permissions: formData.role === 'admin' ? PERMISOS.map(p => p.value) : formData.permissions,
+      permissions: formData.role === 'admin' ? PERMISOS.map(p => p.value) : formData.role === 'empleado' ? ['TAREAS_TALLER'] : formData.permissions,
       createdAt: editingUser?.createdAt || new Date().toISOString(),
       active: formData.active,
     };
@@ -194,7 +194,7 @@ export function UserManagement() {
                           : 'bg-secondary text-foreground border-border'
                       }`}
                     >
-                      {user.role === 'admin' ? 'Dueño / Administrador' : 'Administrativo'}
+                      {user.role === 'admin' ? 'Dueño / Administrador' : user.role === 'empleado' ? 'Empleado del taller' : 'Administrativo'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -229,7 +229,7 @@ export function UserManagement() {
         </div>
 
         {/* Roles Info */}
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="bg-card border border-primary/30 rounded-lg p-6">
             <div className="flex items-center gap-3 mb-3">
               <Shield className="w-6 h-6 text-primary" />
@@ -255,6 +255,10 @@ export function UserManagement() {
               <li>• Registrar cobros en efectivo</li>
               <li>• Gestionar el catálogo de trabajos</li>
             </ul>
+          </div>
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-3"><Wrench className="w-6 h-6 text-primary" /><h3 className="text-lg font-semibold">Empleado del taller</h3></div>
+            <ul className="text-sm text-muted-foreground space-y-2"><li>• Ver órdenes recibidas y en proceso</li><li>• Aceptar una tarea por vez</li><li>• Pausar y finalizar sus trabajos</li><li>• Registrar observaciones técnicas</li></ul>
           </div>
         </div>
       </div>
@@ -313,11 +317,12 @@ export function UserManagement() {
                 <select
                   value={formData.role}
                   onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value as 'admin' | 'usuario' })
+                    setFormData({ ...formData, role: e.target.value as User['role'] })
                   }
                   className="w-full bg-input px-4 py-3 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="usuario">Administrativo</option>
+                  <option value="empleado">Empleado del taller</option>
                   <option value="admin">Dueño / Administrador</option>
                 </select>
               </div>
@@ -333,7 +338,7 @@ export function UserManagement() {
                     <span>{permiso.label}</span>
                   </label>)}
                 </div>
-              </fieldset> : <p className="text-sm text-muted-foreground bg-primary/10 border border-primary/20 rounded-md p-3">El administrador tiene acceso completo a todos los módulos.</p>}
+              </fieldset> : <p className="text-sm text-muted-foreground bg-primary/10 border border-primary/20 rounded-md p-3">{formData.role === 'admin' ? 'El administrador tiene acceso completo a todos los módulos.' : 'El empleado accede únicamente al tablero móvil del taller y a sus tareas.'}</p>}
 
               <label className="flex items-center gap-3 text-sm">
                 <input type="checkbox" checked={formData.active}
