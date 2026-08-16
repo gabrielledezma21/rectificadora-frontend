@@ -16,7 +16,7 @@ export function Login() {
     // Si ya está autenticado, redirigir al inicio
     const user = getCurrentUser();
     if (user) {
-      navigate('/');
+      navigate(user.role === 'empleado' ? '/taller' : '/');
     }
   }, [navigate]);
 
@@ -27,7 +27,7 @@ export function Login() {
 
     try {
       const user = await login(email, password);
-      if (user) navigate('/');
+      if (user) navigate(user.role === 'empleado' ? '/taller' : '/');
       else setError('Email o contraseña incorrectos');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión');

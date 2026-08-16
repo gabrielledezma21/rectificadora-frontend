@@ -30,14 +30,15 @@ interface RespuestaLogin {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'OPERADOR';
+  role: 'ADMIN' | 'OPERADOR' | 'EMPLEADO_TALLER';
   permissions: Permission[];
 }
 
 export async function login(email: string, password: string): Promise<User | null> {
   if (!apiConfigurada) return null;
   const respuesta = await solicitarApi<RespuestaLogin>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-  const usuario: User = { id: respuesta.id, email: respuesta.email, password: '', role: respuesta.role === 'ADMIN' ? 'admin' : 'usuario', name: respuesta.name, createdAt: new Date().toISOString(), permissions: respuesta.permissions || [] };
+  const role: User['role'] = respuesta.role === 'ADMIN' ? 'admin' : respuesta.role === 'EMPLEADO_TALLER' ? 'empleado' : 'usuario';
+  const usuario: User = { id: respuesta.id, email: respuesta.email, password: '', role, name: respuesta.name, createdAt: new Date().toISOString(), permissions: respuesta.permissions || [] };
   guardarToken(respuesta.token);
   sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(usuario));
   return usuario;

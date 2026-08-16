@@ -2,13 +2,13 @@ export type Permission =
   | 'ORDENES_GESTIONAR' | 'CLIENTES_DATOS_BASICOS' | 'CLIENTES_VER_HISTORIAL'
   | 'CATALOGO_GESTIONAR' | 'PAGOS_REGISTRAR' | 'FINANZAS_VER'
   | 'ESTADISTICAS_VER' | 'AUDITORIA_VER' | 'USUARIOS_GESTIONAR'
-  | 'RESPALDOS_GESTIONAR';
+  | 'RESPALDOS_GESTIONAR' | 'TAREAS_TALLER';
 
 export interface User {
   id: string;
   email: string;
   password: string;
-  role: 'admin' | 'usuario';
+  role: 'admin' | 'usuario' | 'empleado';
   name: string;
   createdAt: string;
   active?: boolean;
@@ -35,6 +35,9 @@ export interface WorkOrder {
   clientId?: string;
   vehicleId?: string;
   cliente: string;
+  clienteTelefono?: string;
+  clienteEmail?: string;
+  clienteDireccion?: string;
   motor: string;
   numeroMotor: string;
   patente?: string;
@@ -55,6 +58,42 @@ export interface WorkOrder {
   payments: Payment[];
   metodoPago?: 'efectivo' | 'transferencia' | 'tarjeta' | 'cheque' | 'otro';
   observacionesPago?: string;
+  tareas?: WorkTask[];
+}
+
+export type WorkTaskStatus = 'DISPONIBLE' | 'ASIGNADA' | 'ACEPTADA' | 'EN_PROCESO' | 'PENDIENTE' | 'FINALIZADA';
+export type WorkTaskAction = 'CREADA' | 'ASIGNADA' | 'REASIGNADA' | 'LIBERADA' | 'ACEPTADA' | 'INICIADA' | 'PAUSADA' | 'RETOMADA' | 'FINALIZADA' | 'REABIERTA';
+
+export interface WorkTaskHistory {
+  occurredAt: string;
+  action: WorkTaskAction;
+  actor: string;
+  employeeId?: string;
+  employeeName?: string;
+  comment?: string;
+}
+
+export interface WorkTask {
+  id: string;
+  description: string;
+  category: 'BLOCK' | 'REPUESTO' | 'TAPA' | 'CIGUENAL' | 'OTRO';
+  status: WorkTaskStatus;
+  assignedEmployee?: { id: string; name: string };
+  technicalNotes?: string;
+  history: WorkTaskHistory[];
+  unitPrice?: number;
+  quantity?: number;
+}
+
+export interface WorkshopOrder {
+  id: string;
+  orderNumber: string;
+  status: 'RECEPCION' | 'EN_PROCESO';
+  vehicle?: { id: string; description: string; engineNumber?: string; licensePlate?: string };
+  cylinders?: number;
+  finalMeasure?: string;
+  receptionDescription?: string;
+  tasks: WorkTask[];
 }
 
 export interface TaskWithPrice {

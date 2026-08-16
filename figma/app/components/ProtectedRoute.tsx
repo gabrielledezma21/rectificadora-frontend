@@ -16,12 +16,14 @@ export function ProtectedRoute({ children, requireAdmin = false, permission }: P
     return <Navigate to="/login" replace />;
   }
 
+  const fallback = user.role === 'empleado' ? '/taller' : '/';
+
   if (requireAdmin && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to={fallback} replace />;
   }
 
   if (permission && user.role !== 'admin' && !user.permissions?.includes(permission)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={fallback} replace />;
   }
 
   return <>{children}</>;
