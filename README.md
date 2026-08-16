@@ -28,6 +28,8 @@ Recepción → En proceso → Finalizada → Entregada
 - Asignación y reasignación de tareas por parte del administrador.
 - Gestión de usuarios y permisos.
 - Estadísticas, auditoría y herramientas de respaldo.
+- Explorador de documentación OpenAPI para el administrador.
+- Acceso directo al Swagger UI generado por el backend.
 - Navegación adaptada según rol y permisos.
 - Diseño responsive para escritorio y pantallas más pequeñas.
 
@@ -53,7 +55,7 @@ La interfaz distingue tres perfiles principales:
 - **Administrativo**: acceso según permisos asignados.
 - **Empleado del taller**: acceso al tablero de tareas y a su historial personal.
 
-La navegación se adapta automáticamente al usuario autenticado. Por ejemplo, el administrador dispone de accesos directos a **Usuarios**, **Estadísticas**, **Actividad** y **Respaldos**, mientras que el empleado ve principalmente **Taller** y **Mi historial**.
+La navegación se adapta automáticamente al usuario autenticado. Por ejemplo, el administrador dispone de accesos directos a **Usuarios**, **Estadísticas**, **Actividad**, **Respaldos** y **API**, mientras que el empleado ve principalmente **Taller** y **Mi historial**.
 
 ## Flujo de una orden
 
@@ -100,6 +102,28 @@ La pantalla de clientes muestra:
 - listado desplegable de todas las órdenes asociadas al cliente.
 
 Cada OT del historial permite acceder directamente a su vista administrativa.
+
+## Documentación de la API
+
+El dueño/administrador dispone de la pantalla **API** en la navegación principal.
+
+La pantalla consume directamente la especificación generada por Springdoc en:
+
+```text
+/v3/api-docs
+```
+
+No mantiene una copia manual de los endpoints. Si el backend cambia, la documentación se actualiza automáticamente al volver a cargar el contrato OpenAPI.
+
+Desde esta pantalla se puede:
+
+- ver los endpoints agrupados por módulo;
+- identificar el método HTTP de cada operación;
+- buscar por módulo, ruta o método;
+- abrir el JSON OpenAPI original;
+- abrir Swagger UI para probar los endpoints de forma interactiva.
+
+La pantalla solo está disponible para el rol administrador.
 
 ## Instalación rápida con Docker
 
@@ -155,6 +179,8 @@ CORS_ORIGINS=http://localhost:3000,http://192.168.1.50:3000
 
 El frontend utiliza JWT para autenticación y obtiene un token CSRF para operaciones de escritura. La información de sesión se mantiene en `sessionStorage` del navegador.
 
+La pantalla de documentación también utiliza la URL del backend derivada de `NEXT_PUBLIC_API_URL` para leer `/v3/api-docs` y enlazar Swagger UI.
+
 ## Modo conectado y modo local
 
 El frontend considera que existe una API configurada cuando `NEXT_PUBLIC_API_URL` tiene un valor.
@@ -163,9 +189,10 @@ Con API configurada:
 
 - clientes, órdenes, pagos, tareas, usuarios y demás módulos se obtienen del backend;
 - los datos quedan persistidos en PostgreSQL;
-- la autenticación se realiza contra Spring Boot.
+- la autenticación se realiza contra Spring Boot;
+- la documentación OpenAPI se obtiene del backend.
 
-Sin API configurada, algunas partes del proyecto pueden utilizar datos locales o de demostración. Ese modo no debe considerarse una instalación productiva del sistema.
+Sin API configurada, algunas partes del proyecto pueden utilizar datos locales o de demostración. Ese modo no debe considerarse una instalación productiva del sistema y la pantalla de documentación API informa que necesita un backend configurado.
 
 ## Desarrollo local
 
@@ -235,6 +262,7 @@ Las pantallas principales incluyen:
 - **Estadísticas**: métricas mensuales.
 - **Actividad**: auditoría de acciones.
 - **Respaldos**: herramientas administrativas de exportación.
+- **API**: explorador del contrato OpenAPI y acceso a Swagger.
 - **Mi historial**: tareas realizadas o pendientes del empleado autenticado.
 
 ## Impresión de órdenes
