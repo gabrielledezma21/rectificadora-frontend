@@ -1,5 +1,18 @@
 import { solicitarApi } from './api';
-import { TRABAJOS_BLOCK, REPUESTOS, TRABAJOS_TAPA, TRABAJOS_CIGUENAL, type Payment, type Permission, type User, type WorkOrder, type WorkTask, type WorkshopOrder } from './types';
+import {
+  TRABAJOS_BLOCK,
+  REPUESTOS,
+  TRABAJOS_TAPA,
+  TRABAJOS_CIGUENAL,
+  type EstadoTareaTaller,
+  type HistorialTareaTaller,
+  type OrdenTaller,
+  type Payment,
+  type Permission,
+  type TareaTaller,
+  type User,
+  type WorkOrder,
+} from './types';
 import type { Client } from './clientStore';
 import type { AuditEntry } from './audit';
 
@@ -9,10 +22,19 @@ type MetodoPagoApi = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE' | 'OTRO
 
 interface VehiculoApi { id: string; description: string; engineNumber?: string; licensePlate?: string }
 interface ClienteApi { id: string; name: string; phone?: string; email?: string; address?: string; createdAt: string; vehicles: VehiculoApi[] }
+interface HistorialTareaApi {
+  occurredAt: string;
+  action: HistorialTareaTaller['accion'];
+  actor: string;
+  employeeId?: string;
+  employeeName?: string;
+  comment?: string;
+}
 interface ItemApi {
   id: string; description: string; category: CategoriaApi; unitPrice: number; quantity: number;
-  catalogTask?: { id: string }; taskStatus: WorkTask['status']; assignedEmployee?: WorkTask['assignedEmployee'];
-  technicalNotes?: string; history?: WorkTask['history'];
+  catalogTask?: { id: string }; taskStatus: EstadoTareaTaller;
+  assignedEmployee?: { id: string; name: string };
+  technicalNotes?: string; history?: HistorialTareaApi[];
 }
 interface PagoApi { id: string; paidAt: string; amount: number; method: MetodoPagoApi; details?: string; registeredBy?: string; cancelledAt?: string; cancelledBy?: string; cancellationReason?: string }
 export interface TareaCatalogo { id: string; name: string; category: CategoriaApi; price: number; active: boolean }
@@ -21,6 +43,24 @@ interface OrdenApi {
   client: ClienteApi; vehicle?: VehiculoApi; status: EstadoApi; cylinders?: number;
   finalMeasure?: string; receptionDescription?: string; notes?: string;
   total: number; paid: number; balance: number; items: ItemApi[]; payments: PagoApi[];
+}
+interface OrdenTallerApi {
+  id: string;
+  orderNumber: string;
+  status: 'RECEPCION' | 'EN_PROCESO';
+  vehicle?: VehiculoApi;
+  cylinders?: number;
+  finalMeasure?: string;
+  receptionDescription?: string;
+  tasks: Array<{
+    id: string;
+    description: string;
+    category: CategoriaApi;
+    status: EstadoTareaTaller;
+    assignedEmployee?: { id: string; name: string };
+    technicalNotes?: string;
+    history: HistorialTareaApi[];
+  }>;
 }
 
 const estadoDesdeApi: Record<EstadoApi, WorkOrder['estado']> = {
@@ -36,6 +76,47 @@ const metodoHaciaApi: Record<Payment['method'], MetodoPagoApi> = {
   cheque: 'CHEQUE', otro: 'OTRO',
 };
 const metodoDesdeApi = Object.fromEntries(Object.entries(metodoHaciaApi).map(([a, b]) => [b, a])) as Record<MetodoPagoApi, Payment['method']>;
+
+function adaptarHistorialTarea(historial: HistorialTareaApi[] = []): HistorialTareaTaller[] {
+  return historial.map(evento => ({
+    fecha: evento.occurredAt,
+    accion: evento.action,
+    actor: evento.actor,
+    idEmpleado: evento.employeeId,
+    nombreEmpleado: evento.employeeName,
+    comentario: evento.comment,
+  }));
+}
+
+function adaptarTareaTaller(tarea: OrdenTallerApi['tasks'][number]): TareaTaller {
+  return {
+    id: tarea.id,
+    descripcion: tarea.description,
+    categoria: tarea.category,
+    estado: tarea.status,
+    empleadoAsignado: tarea.assignedEmployee ? { id: tarea.assignedEmployee.id, nombre: tarea.assignedEmployee.name } : undefined,
+    notasTecnicas: tarea.technicalNotes,
+    historial: adaptarHistorialTarea(tarea.history),
+  };
+}
+
+function adaptarOrdenTaller(orden: OrdenTallerApi): OrdenTaller {
+  return {
+    id: orden.id,
+    numeroOrden: orden.orderNumber,
+    estado: orden.status,
+    vehiculo: orden.vehicle ? {
+      id: orden.vehicle.id,
+      descripcion: orden.vehicle.description,
+      numeroMotor: orden.vehicle.engineNumber,
+      patente: orden.vehicle.licensePlate,
+    } : undefined,
+    cilindros: orden.cylinders,
+    medidaFinal: orden.finalMeasure,
+    descripcionRecepcion: orden.receptionDescription,
+    tareas: orden.tasks.map(adaptarTareaTaller),
+  };
+}
 
 export function adaptarCliente(cliente: ClienteApi): Client {
   return {
@@ -58,9 +139,17 @@ export function adaptarOrden(orden: OrdenApi): WorkOrder {
     total: Number(orden.total), sena: Number(orden.paid), saldo: Number(orden.balance),
     trabajosBlock: grupos.BLOCK, repuestos: grupos.REPUESTO, trabajosTapa: grupos.TAPA,
     trabajosCiguenal: grupos.CIGUENAL, descripcionRecepcion: orden.receptionDescription || '',
-    tareas: (orden.items || []).map(item => ({ id: item.id, description: item.description, category: item.category,
-      status: item.taskStatus || 'DISPONIBLE', assignedEmployee: item.assignedEmployee,
-      technicalNotes: item.technicalNotes, history: item.history || [], unitPrice: Number(item.unitPrice), quantity: item.quantity })),
+    tareas: (orden.items || []).map(item => ({
+      id: item.id,
+      descripcion: item.description,
+      categoria: item.category,
+      estado: item.taskStatus || 'DISPONIBLE',
+      empleadoAsignado: item.assignedEmployee ? { id: item.assignedEmployee.id, nombre: item.assignedEmployee.name } : undefined,
+      notasTecnicas: item.technicalNotes,
+      historial: adaptarHistorialTarea(item.history),
+      precioUnitario: Number(item.unitPrice),
+      cantidad: item.quantity,
+    })),
     payments: (orden.payments || []).map(p => ({ id: p.id, date: p.paidAt, amount: Number(p.amount), method: metodoDesdeApi[p.method], details: p.details || '', registeredBy: p.registeredBy, cancelledAt: p.cancelledAt, cancelledBy: p.cancelledBy, cancellationReason: p.cancellationReason })),
   };
 }
@@ -112,10 +201,10 @@ function itemsDe(orden: WorkOrder, tareas: TareaCatalogo[]) {
   const grupos: Array<[CategoriaApi, string[]]> = [
     ['BLOCK', orden.trabajosBlock], ['REPUESTO', orden.repuestos], ['TAPA', orden.trabajosTapa], ['CIGUENAL', orden.trabajosCiguenal],
   ];
-  return grupos.flatMap(([category, nombres]) => nombres.map(description => {
-    const tarea = tareas.find(t => t.category === category && t.name === description);
-    const existing = orden.tareas?.find(item => item.category === category && item.description === description);
-    return { id: existing?.id || null, taskId: tarea?.id || null, description, category, unitPrice: tarea?.price ?? obtenerPrecio(description), quantity: 1 };
+  return grupos.flatMap(([categoria, nombres]) => nombres.map(descripcion => {
+    const tarea = tareas.find(item => item.category === categoria && item.name === descripcion);
+    const existente = orden.tareas?.find(item => item.categoria === categoria && item.descripcion === descripcion);
+    return { id: existente?.id || null, taskId: tarea?.id || null, description: descripcion, category: categoria, unitPrice: tarea?.price ?? obtenerPrecio(descripcion), quantity: 1 };
   }));
 }
 
@@ -170,14 +259,20 @@ export async function guardarUsuarioApi(usuario: User): Promise<User> {
 }
 export const eliminarUsuarioApi = (id: string) => solicitarApi<void>(`/users/${id}`, { method: 'DELETE' });
 
-interface WorkshopOrderApi extends Omit<WorkshopOrder, 'tasks'> { tasks: WorkTask[] }
-export const listarOrdenesTaller = () => solicitarApi<WorkshopOrderApi[]>('/workshop/orders');
-export const aceptarTareaApi = (id: string) => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/accept`, { method: 'PATCH' });
-export const iniciarTareaApi = (id: string) => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/start`, { method: 'PATCH' });
-export const pausarTareaApi = (id: string, reason: string) => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/pending`, { method: 'PATCH', body: JSON.stringify({ reason }) });
-export const finalizarTareaApi = (id: string, comment: string) => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/complete`, { method: 'PATCH', body: JSON.stringify({ comment }) });
-export const asignarTareaApi = (id: string, employeeId: string | null, comment = '') => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/assignment`, { method: 'PATCH', body: JSON.stringify({ employeeId, comment }) });
-export const reabrirTareaApi = (id: string, comment = '') => solicitarApi<WorkshopOrderApi>(`/workshop/tasks/${id}/reopen`, { method: 'PATCH', body: JSON.stringify({ comment }) });
+export async function listarOrdenesTaller(): Promise<OrdenTaller[]> {
+  const datos = await solicitarApi<OrdenTallerApi[]>('/workshop/orders');
+  return datos.map(adaptarOrdenTaller);
+}
+
+const ejecutarAccionTarea = async (ruta: string, opciones: RequestInit = {}): Promise<OrdenTaller> =>
+  adaptarOrdenTaller(await solicitarApi<OrdenTallerApi>(ruta, opciones));
+
+export const aceptarTareaApi = (id: string) => ejecutarAccionTarea(`/workshop/tasks/${id}/accept`, { method: 'PATCH' });
+export const iniciarTareaApi = (id: string) => ejecutarAccionTarea(`/workshop/tasks/${id}/start`, { method: 'PATCH' });
+export const pausarTareaApi = (id: string, motivo: string) => ejecutarAccionTarea(`/workshop/tasks/${id}/pending`, { method: 'PATCH', body: JSON.stringify({ reason: motivo }) });
+export const finalizarTareaApi = (id: string, comentario: string) => ejecutarAccionTarea(`/workshop/tasks/${id}/complete`, { method: 'PATCH', body: JSON.stringify({ comment: comentario }) });
+export const asignarTareaApi = (id: string, idEmpleado: string | null, comentario = '') => ejecutarAccionTarea(`/workshop/tasks/${id}/assignment`, { method: 'PATCH', body: JSON.stringify({ employeeId: idEmpleado, comment: comentario }) });
+export const reabrirTareaApi = (id: string, comentario = '') => ejecutarAccionTarea(`/workshop/tasks/${id}/reopen`, { method: 'PATCH', body: JSON.stringify({ comment: comentario }) });
 
 function categoriaAuditoria(tipo: string): AuditEntry['category'] {
   return ({ ORDER: 'orden', CLIENT: 'cliente', PAYMENT: 'pago', USER: 'usuario' } as Record<string, AuditEntry['category']>)[tipo] || 'sistema';
