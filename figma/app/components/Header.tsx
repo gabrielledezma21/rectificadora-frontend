@@ -24,6 +24,7 @@ export function Header() {
       { label: 'Órdenes', path: '/ordenes', icon: Wrench },
       { label: 'Clientes', path: '/clientes', icon: Users },
     ]),
+    ...(user.role === 'admin' ? [{ label: 'Usuarios', path: '/usuarios', icon: Shield }] : []),
     ...(user.role === 'admin' || user.permissions?.includes('CATALOGO_GESTIONAR') ? [{ label: 'Catálogo', path: '/catalogo', icon: ListChecks }] : []),
     ...(user.role === 'admin' ? [
       { label: 'Estadísticas', path: '/estadisticas', icon: BarChart3 },
