@@ -1,11 +1,12 @@
 FROM node:22-alpine AS build
 WORKDIR /app
+RUN apk add --no-cache bash coreutils
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN sed -i 's/\r$//' scripts/*.sh && npm run build
 
 FROM node:22-alpine
 WORKDIR /app
