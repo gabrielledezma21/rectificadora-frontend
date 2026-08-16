@@ -13,6 +13,7 @@ import { DataTools } from "./components/DataTools";
 import { CatalogManagement } from "./components/CatalogManagement";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { WorkshopBoard } from "./components/WorkshopBoard";
+import { HistorialTareasEmpleado } from "./components/HistorialTareasEmpleado";
 
 export const createAppRouter = () => createHashRouter([
   {
@@ -34,6 +35,10 @@ export const createAppRouter = () => createHashRouter([
       {
         path: "taller",
         element: <ProtectedRoute><WorkshopBoard /></ProtectedRoute>,
+      },
+      {
+        path: "mi-historial",
+        element: <ProtectedRoute><HistorialTareasEmpleado /></ProtectedRoute>,
       },
       {
         path: "ordenes",
