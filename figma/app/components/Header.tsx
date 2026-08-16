@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Activity, BarChart3, Database, History, Home, ListChecks, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
+import { Activity, BarChart3, Database, FileCode2, History, Home, ListChecks, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
 import { getCurrentUser, logout } from '../auth';
 
 export function Header() {
@@ -30,6 +30,7 @@ export function Header() {
       { label: 'Estadísticas', path: '/estadisticas', icon: BarChart3 },
       { label: 'Actividad', path: '/actividad', icon: Activity },
       { label: 'Respaldos', path: '/respaldos', icon: Database },
+      { label: 'API', path: '/documentacion-api', icon: FileCode2 },
     ] : []),
   ];
 
