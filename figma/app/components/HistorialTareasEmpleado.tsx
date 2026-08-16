@@ -3,21 +3,59 @@ import { CheckCircle2, Clock3, History, PauseCircle, RefreshCw, RotateCcw, Searc
 import { useNavigate } from 'react-router';
 import { solicitarApi } from '../api';
 import { aceptarTareaApi } from '../serviciosApi';
-import type { WorkTaskAction, WorkTaskStatus } from '../types';
+import type { AccionTareaTaller, EstadoTareaTaller, VehiculoTaller } from '../types';
+
+interface VehiculoHistorialApi {
+  id: string;
+  description: string;
+  engineNumber?: string;
+  licensePlate?: string;
+}
+
+interface EntradaHistorialApi {
+  idTarea: string;
+  descripcionTarea: string;
+  idOrden: string;
+  numeroOrden: string;
+  vehiculo?: VehiculoHistorialApi;
+  accion: AccionTareaTaller;
+  fecha: string;
+  comentario?: string;
+  estadoActual: EstadoTareaTaller;
+}
 
 interface EntradaHistorialEmpleado {
   idTarea: string;
   descripcionTarea: string;
   idOrden: string;
   numeroOrden: string;
-  vehiculo?: { id: string; description: string; engineNumber?: string; licensePlate?: string };
-  accion: WorkTaskAction;
+  vehiculo?: VehiculoTaller;
+  accion: AccionTareaTaller;
   fecha: string;
   comentario?: string;
-  estadoActual: WorkTaskStatus;
+  estadoActual: EstadoTareaTaller;
 }
 
 type FiltroHistorial = 'todas' | 'finalizadas' | 'pendientes';
+
+function adaptarEntradaHistorial(entrada: EntradaHistorialApi): EntradaHistorialEmpleado {
+  return {
+    idTarea: entrada.idTarea,
+    descripcionTarea: entrada.descripcionTarea,
+    idOrden: entrada.idOrden,
+    numeroOrden: entrada.numeroOrden,
+    vehiculo: entrada.vehiculo ? {
+      id: entrada.vehiculo.id,
+      descripcion: entrada.vehiculo.description,
+      numeroMotor: entrada.vehiculo.engineNumber,
+      patente: entrada.vehiculo.licensePlate,
+    } : undefined,
+    accion: entrada.accion,
+    fecha: entrada.fecha,
+    comentario: entrada.comentario,
+    estadoActual: entrada.estadoActual,
+  };
+}
 
 export function HistorialTareasEmpleado() {
   const navegar = useNavigate();
@@ -31,7 +69,8 @@ export function HistorialTareasEmpleado() {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      setEntradas(await solicitarApi<EntradaHistorialEmpleado[]>('/workshop/mi-historial'));
+      const datos = await solicitarApi<EntradaHistorialApi[]>('/workshop/mi-historial');
+      setEntradas(datos.map(adaptarEntradaHistorial));
       setError('');
     } catch (causa) {
       setError(causa instanceof Error ? causa.message : 'No se pudo cargar tu historial');
@@ -51,8 +90,8 @@ export function HistorialTareasEmpleado() {
       if (filtro === 'finalizadas' && entrada.accion !== 'FINALIZADA') return false;
       if (filtro === 'pendientes' && entrada.accion !== 'PAUSADA') return false;
       if (!textoNormalizado) return true;
-      const textoBusqueda = [entrada.numeroOrden, entrada.descripcionTarea, entrada.vehiculo?.description,
-        entrada.vehiculo?.engineNumber, entrada.vehiculo?.licensePlate, entrada.comentario]
+      const textoBusqueda = [entrada.numeroOrden, entrada.descripcionTarea, entrada.vehiculo?.descripcion,
+        entrada.vehiculo?.numeroMotor, entrada.vehiculo?.patente, entrada.comentario]
         .filter(Boolean).join(' ').toLocaleLowerCase('es-AR');
       return textoBusqueda.includes(textoNormalizado);
     });
@@ -107,7 +146,7 @@ export function HistorialTareasEmpleado() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><span className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${finalizada ? 'bg-green-500/15 text-green-300' : 'bg-orange-500/15 text-orange-300'}`}>{finalizada ? <CheckCircle2 className="h-3.5 w-3.5" /> : <PauseCircle className="h-3.5 w-3.5" />}{finalizada ? 'Realizada' : 'Dejada pendiente'}</span><span className="font-mono text-sm font-semibold text-primary">{entrada.numeroOrden}</span></div>
             <h2 className="mt-2 text-base font-semibold">{entrada.descripcionTarea}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{entrada.vehiculo?.description || 'Motor sin descripción'}{entrada.vehiculo?.engineNumber ? ` · ${entrada.vehiculo.engineNumber}` : ''}{entrada.vehiculo?.licensePlate ? ` · ${entrada.vehiculo.licensePlate}` : ''}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{entrada.vehiculo?.descripcion || 'Motor sin descripción'}{entrada.vehiculo?.numeroMotor ? ` · ${entrada.vehiculo.numeroMotor}` : ''}{entrada.vehiculo?.patente ? ` · ${entrada.vehiculo.patente}` : ''}</p>
             <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{new Date(entrada.fecha).toLocaleString('es-AR')}</div>
             {entrada.comentario ? <p className="mt-3 rounded-md bg-secondary/40 p-3 text-sm text-muted-foreground">{entrada.comentario}</p> : null}
             {!finalizada && entrada.estadoActual !== 'PENDIENTE' ? <p className="mt-2 text-xs text-muted-foreground">Estado actual: {entrada.estadoActual === 'FINALIZADA' ? 'finalizada posteriormente' : entrada.estadoActual.toLowerCase().replace('_', ' ')}</p> : null}
