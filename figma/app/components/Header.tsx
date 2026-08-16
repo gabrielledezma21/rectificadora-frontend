@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Activity, BarChart3, Database, Home, ListChecks, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
+import { Activity, BarChart3, Database, History, Home, ListChecks, LogOut, Menu, Shield, User, Users, Wrench, X } from 'lucide-react';
 import { getCurrentUser, logout } from '../auth';
 
 export function Header() {
@@ -20,7 +20,7 @@ export function Header() {
   const navItems = [
     ...(user.role === 'empleado' ? [] : [{ label: 'Inicio', path: '/', icon: Home }]),
     { label: 'Taller', path: '/taller', icon: Wrench },
-    ...(user.role === 'empleado' ? [] : [
+    ...(user.role === 'empleado' ? [{ label: 'Mi historial', path: '/mi-historial', icon: History }] : [
       { label: 'Órdenes', path: '/ordenes', icon: Wrench },
       { label: 'Clientes', path: '/clientes', icon: Users },
     ]),
