@@ -57,7 +57,9 @@ export function OrderList() {
 
       loadedOrders = loadedOrders.filter(order => {
         const orderDate = new Date(order.date);
-        return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+        const current = orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+        const stillOpen = order.estado === 'recepcion' || order.estado === 'en-proceso' || order.estado === 'finalizado';
+        return current || stillOpen;
       });
     }
 
