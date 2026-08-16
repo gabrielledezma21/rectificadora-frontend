@@ -38,7 +38,11 @@ export function WorkshopBoard() {
     } finally { setLoading(false); }
   }, [isAdmin]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // La consulta remota actualiza el tablero únicamente después de resolverse.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
 
   const activeTaskId = useMemo(() => orders.flatMap(order => order.tasks).find(task =>
     task.assignedEmployee?.id === currentUser?.id && (task.status === 'ACEPTADA' || task.status === 'EN_PROCESO'))?.id,
