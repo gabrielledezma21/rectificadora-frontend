@@ -27,6 +27,11 @@ export function Dashboard() {
   const finished = orders.filter(o => o.estado === 'finalizado');
   const pending = orders.reduce((sum, o) => sum + o.saldo, 0);
   const overdue = active.filter(o => now - new Date(o.date).getTime() > 7 * 86400000);
+  const ordenesParaRevision = orders.filter(orden => {
+    const tareas = orden.tareas || [];
+    const sigueAbierta = orden.estado === 'recepcion' || orden.estado === 'en-proceso';
+    return sigueAbierta && tareas.length > 0 && tareas.every(tarea => tarea.estado === 'FINALIZADA');
+  });
   const cards: Array<{ label: string; value: string | number; note: string; Icon: LucideIcon; tone: string }> = [
     { label: 'Órdenes activas', value: active.length, note: 'En recepción o proceso', Icon: Wrench, tone: 'text-blue-400' },
     { label: 'Listas para entregar', value: finished.length, note: 'Trabajos finalizados', Icon: CheckCircle2, tone: 'text-green-400' },
@@ -57,6 +62,27 @@ export function Dashboard() {
             </article>
           ))}
         </section>
+
+        {ordenesParaRevision.length > 0 && <section className="rounded-xl border border-green-500/40 bg-green-500/10 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <CheckCircle2 className="mt-0.5 h-7 w-7 shrink-0 text-green-400" />
+              <div>
+                <b className="text-lg text-green-300">{ordenesParaRevision.length} orden{ordenesParaRevision.length === 1 ? '' : 'es'} con todas las tareas terminadas</b>
+                <p className="mt-1 text-sm text-muted-foreground">Revisá el trabajo y, si está correcto, avanzá la orden a Finalizada antes de la entrega.</p>
+              </div>
+            </div>
+            <button onClick={() => navigate('/ordenes')} className="flex shrink-0 items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm hover:bg-green-700">Ver órdenes <ArrowRight className="h-4 w-4" /></button>
+          </div>
+          <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {ordenesParaRevision.slice(0, 4).map(orden => <button key={orden.id} onClick={() => navigate(`/orden/${orden.id}?format=administrativa`)} className="rounded-lg border border-green-500/20 bg-background/40 p-3 text-left transition-colors hover:bg-green-500/10">
+              <span className="block font-mono text-sm font-semibold text-green-300">{orden.orderNumber}</span>
+              <span className="mt-1 block truncate text-sm font-medium">{orden.cliente}</span>
+              <span className="block truncate text-xs text-muted-foreground">{orden.motor || 'Motor sin descripción'}</span>
+            </button>)}
+          </div>
+          {ordenesParaRevision.length > 4 ? <p className="mt-3 text-xs text-muted-foreground">Hay {ordenesParaRevision.length - 4} orden{ordenesParaRevision.length - 4 === 1 ? '' : 'es'} más pendiente{ordenesParaRevision.length - 4 === 1 ? '' : 's'} de revisión.</p> : null}
+        </section>}
 
         {overdue.length > 0 && <section className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-4">
           <AlertTriangle className="w-6 h-6 text-yellow-400 shrink-0" /><div className="flex-1"><b className="text-yellow-300">{overdue.length} orden{overdue.length > 1 ? 'es' : ''} con más de 7 días</b><p className="text-sm text-muted-foreground">Conviene revisar su avance y avisar al cliente.</p></div>

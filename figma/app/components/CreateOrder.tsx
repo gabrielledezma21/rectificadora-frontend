@@ -1,11 +1,35 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Save, Printer, Wrench, Calculator, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Printer, Wrench, Calculator, ChevronDown } from 'lucide-react';
 import { WorkOrder, TRABAJOS_BLOCK, REPUESTOS, TRABAJOS_TAPA, TRABAJOS_CIGUENAL } from '../types';
 import { persistirOrden, generateOrderNumber, cargarOrden } from '../store';
 import { cargarClientes, asegurarCliente, Client, Vehicle } from '../clientStore';
 import { apiConfigurada } from '../api';
 import { listarTareas } from '../serviciosApi';
+
+const ETIQUETA_ESTADO_ORDEN: Record<WorkOrder['estado'], string> = {
+  recepcion: 'Recepción',
+  'en-proceso': 'En proceso',
+  finalizado: 'Finalizada',
+  entregado: 'Entregada',
+  cancelado: 'Cancelada',
+};
+
+const CLASE_ESTADO_ORDEN: Record<WorkOrder['estado'], string> = {
+  recepcion: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
+  'en-proceso': 'border-blue-500/30 bg-blue-500/10 text-blue-300',
+  finalizado: 'border-green-500/30 bg-green-500/10 text-green-300',
+  entregado: 'border-violet-500/30 bg-violet-500/10 text-violet-300',
+  cancelado: 'border-red-500/30 bg-red-500/10 text-red-300',
+};
+
+const SIGUIENTE_PASO_ESTADO_ORDEN: Record<WorkOrder['estado'], string> = {
+  recepcion: 'El siguiente paso es pasarla a En proceso cuando el taller comience el trabajo.',
+  'en-proceso': 'Cuando todas las tareas estén terminadas, revisá la orden antes de marcarla como Finalizada.',
+  finalizado: 'La orden ya fue revisada. El siguiente paso es marcarla como Entregada cuando el cliente la retire.',
+  entregado: 'La orden ya fue entregada. Este estado es final.',
+  cancelado: 'La orden está cancelada. Este estado es final.',
+};
 
 export function CreateOrder() {
   const navigate = useNavigate();
@@ -187,18 +211,25 @@ export function CreateOrder() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-2">Estado</label>
-                  <select
-                    value={formData.estado}
-                    onChange={(e) => setFormData({ ...formData, estado: e.target.value as WorkOrder['estado'] })}
-                    className="w-full bg-input px-3 py-2.5 rounded-md border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="recepcion">Recepción</option>
-                    <option value="en-proceso">En Proceso</option>
-                    <option value="finalizado">Finalizado</option>
-                    <option value="entregado">Entregado</option>
-                    <option value="cancelado">Cancelado</option>
-                  </select>
+                  <div className="mb-2 text-sm text-muted-foreground">Estado actual</div>
+                  <div className="rounded-lg border border-border bg-background/40 p-4">
+                    <span className={`inline-flex rounded-md border px-2.5 py-1 text-sm font-semibold ${CLASE_ESTADO_ORDEN[formData.estado]}`}>
+                      {ETIQUETA_ESTADO_ORDEN[formData.estado]}
+                    </span>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                      {isEditing
+                        ? SIGUIENTE_PASO_ESTADO_ORDEN[formData.estado]
+                        : 'Las órdenes nuevas comienzan en Recepción. El estado se avanza después desde la vista administrativa.'}
+                    </p>
+                    {isEditing && apiConfigurada ? <button
+                      type="button"
+                      onClick={() => navigate(`/orden/${formData.id}?format=administrativa`)}
+                      className="mt-3 flex w-full items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm hover:bg-secondary/80"
+                    >
+                      Gestionar estado
+                      <ArrowRight className="h-4 w-4" />
+                    </button> : null}
+                  </div>
                 </div>
 
                 <div>

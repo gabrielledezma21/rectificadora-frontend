@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, Circle, CircleDot, Printer, RotateCcw, Truck } from 'lucide-react';
 import type { TareaTaller, WorkOrder } from '../types';
 import { cargarOrden } from '../store';
+import { getCurrentUser } from '../auth';
+import { cambiarEstadoApi } from '../serviciosApi';
 
 type FormatoImpresion = 'cliente' | 'administrativa' | 'taller';
+type EstadoOrden = WorkOrder['estado'];
+
 const etiquetaFormato: Record<FormatoImpresion, string> = {
   cliente: 'Orden para el cliente', administrativa: 'Orden administrativa', taller: 'Hoja de trabajo del taller',
 };
@@ -12,11 +16,18 @@ const etiquetaEstado: Record<TareaTaller['estado'], string> = {
   DISPONIBLE: 'Disponible', ASIGNADA: 'Asignada', ACEPTADA: 'Aceptada', EN_PROCESO: 'En proceso',
   PENDIENTE: 'Pendiente', FINALIZADA: 'Finalizada',
 };
+const pasosOrden: Array<{ estado: Exclude<EstadoOrden, 'cancelado'>; etiqueta: string }> = [
+  { estado: 'recepcion', etiqueta: 'Recepción' },
+  { estado: 'en-proceso', etiqueta: 'En proceso' },
+  { estado: 'finalizado', etiqueta: 'Finalizada' },
+  { estado: 'entregado', etiqueta: 'Entregada' },
+];
 const formatearDinero = (valor: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(valor);
 
 export function PrintOrder() {
   const { id } = useParams();
   const navegar = useNavigate();
+  const usuario = getCurrentUser();
   const [parametros, setParametros] = useSearchParams();
   const formatoSolicitado = parametros.get('format');
   const formato: FormatoImpresion = formatoSolicitado === 'administrativa' || formatoSolicitado === 'taller'
@@ -24,6 +35,7 @@ export function PrintOrder() {
     : 'cliente';
   const [orden, setOrden] = useState<WorkOrder>();
   const [error, setError] = useState('');
+  const [actualizandoEstado, setActualizandoEstado] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -41,10 +53,30 @@ export function PrintOrder() {
     ...orden.trabajosTapa.map(descripcion => ({ id: `tapa-${descripcion}`, descripcion, categoria: 'TAPA' as const, estado: 'DISPONIBLE' as const, historial: [] })),
     ...orden.trabajosCiguenal.map(descripcion => ({ id: `ciguenal-${descripcion}`, descripcion, categoria: 'CIGUENAL' as const, estado: 'DISPONIBLE' as const, historial: [] })),
   ];
+  const tareasFinalizadas = tareas.filter(tarea => tarea.estado === 'FINALIZADA').length;
+  const todasLasTareasFinalizadas = tareas.length > 0 && tareasFinalizadas === tareas.length;
+  const puedeGestionar = usuario?.role === 'admin' || Boolean(usuario?.permissions?.includes('ORDENES_GESTIONAR'));
+  const mostrarGestion = formato === 'administrativa' && puedeGestionar;
+
+  const cambiarEstado = async (nuevoEstado: EstadoOrden, confirmacion?: string) => {
+    if (confirmacion && !window.confirm(confirmacion)) return;
+    setActualizandoEstado(true);
+    try {
+      const actualizada = await cambiarEstadoApi(orden.id, nuevoEstado);
+      setOrden(actualizada);
+      setError('');
+    } catch (causa) {
+      setError(causa instanceof Error ? causa.message : 'No se pudo cambiar el estado de la orden');
+    } finally {
+      setActualizandoEstado(false);
+    }
+  };
 
   return <>
     <div className="print:hidden sticky top-0 z-50 border-b border-border bg-background p-4"><div className="mx-auto flex max-w-[210mm] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><button onClick={() => navegar(-1)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-2"><ArrowLeft className="h-4 w-4" />Volver</button><div className="flex flex-wrap justify-center gap-2">{(Object.keys(etiquetaFormato) as FormatoImpresion[]).map(valor => <button key={valor} onClick={() => setParametros({ format: valor })} className={`rounded-md px-3 py-2 text-sm ${formato === valor ? 'bg-primary' : 'bg-secondary'}`}>{etiquetaFormato[valor]}</button>)}</div><button onClick={() => window.print()} className="flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2"><Printer className="h-4 w-4" />Imprimir / PDF</button></div></div>
     <main className="min-h-screen bg-muted p-4 print:bg-white print:p-0 sm:p-8"><article className="mx-auto max-w-[210mm] bg-white p-7 text-black shadow-2xl print:shadow-none sm:p-12">
+      {mostrarGestion ? <FlujoEstadoOrden orden={orden} tareasFinalizadas={tareasFinalizadas} tareasTotales={tareas.length} todasFinalizadas={todasLasTareasFinalizadas} actualizando={actualizandoEstado} cambiarEstado={cambiarEstado} /> : null}
+
       <header className="mb-7 flex items-start justify-between gap-5 border-b-2 border-black pb-5"><div><h1 className="text-2xl font-bold uppercase">Rectificadora Las Flores</h1><p className="mt-1 text-sm text-gray-600">Rectificación y más · Av. Del Libertador 6085 · (011) 3078-5714</p></div><div className="text-right"><div className="text-xs uppercase text-gray-500">Orden</div><strong className="font-mono text-xl">{orden.orderNumber}</strong></div></header>
       <h2 className="mb-7 text-center text-xl font-bold uppercase tracking-wide">{etiquetaFormato[formato]}</h2>
 
@@ -63,6 +95,49 @@ export function PrintOrder() {
     </article></main>
     <style>{`@media print { @page { size: A4; margin: 10mm; } body { background: white; } }`}</style>
   </>;
+}
+
+function FlujoEstadoOrden({ orden, tareasFinalizadas, tareasTotales, todasFinalizadas, actualizando, cambiarEstado }: {
+  orden: WorkOrder;
+  tareasFinalizadas: number;
+  tareasTotales: number;
+  todasFinalizadas: boolean;
+  actualizando: boolean;
+  cambiarEstado: (estado: EstadoOrden, confirmacion?: string) => Promise<void>;
+}) {
+  const indiceActual = pasosOrden.findIndex(paso => paso.estado === orden.estado);
+  const cancelada = orden.estado === 'cancelado';
+
+  return <section className={`print:hidden mb-7 rounded-xl border p-5 ${cancelada ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'}`}>
+    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div><h2 className="font-semibold">Estado de la orden</h2><p className="mt-1 text-sm text-gray-600">Seguí el flujo en orden. El sistema evita saltear etapas.</p></div>
+      <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${cancelada ? 'bg-red-100 text-red-800' : 'bg-gray-200 text-gray-800'}`}>{cancelada ? 'Cancelada' : pasosOrden[indiceActual]?.etiqueta}</span>
+    </div>
+
+    {!cancelada ? <div className="mb-5 grid grid-cols-4 gap-2">{pasosOrden.map((paso, indice) => {
+      const completado = indice < indiceActual;
+      const actual = indice === indiceActual;
+      return <div key={paso.estado} className="relative text-center">
+        <div className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border-2 ${completado ? 'border-green-600 bg-green-600 text-white' : actual ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-400'}`}>{completado ? <CheckCircle2 className="h-5 w-5" /> : actual ? <CircleDot className="h-5 w-5" /> : <Circle className="h-5 w-5" />}</div>
+        <div className={`mt-2 text-xs ${actual ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>{paso.etiqueta}</div>
+        {indice < pasosOrden.length - 1 ? <div className={`absolute left-[calc(50%+22px)] top-4 h-0.5 w-[calc(100%-44px)] ${indice < indiceActual ? 'bg-green-600' : 'bg-gray-300'}`} /> : null}
+      </div>;
+    })}</div> : null}
+
+    {!cancelada && (orden.estado === 'recepcion' || orden.estado === 'en-proceso') ? <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3 text-sm">
+      <div className="flex items-center justify-between gap-3"><span>Avance del taller</span><strong>{tareasFinalizadas}/{tareasTotales} tareas</strong></div>
+      {orden.estado === 'en-proceso' && !todasFinalizadas ? <p className="mt-2 text-xs text-amber-700">Para pasar a Finalizada primero deben terminarse todas las tareas.</p> : null}
+      {orden.estado === 'en-proceso' && todasFinalizadas ? <p className="mt-2 text-xs font-medium text-green-700">Todas las tareas están terminadas. La orden está lista para revisión.</p> : null}
+    </div> : null}
+
+    <div className="flex flex-wrap gap-2">
+      {orden.estado === 'recepcion' ? <button disabled={actualizando} onClick={() => void cambiarEstado('en-proceso')} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Pasar a En proceso</button> : null}
+      {orden.estado === 'en-proceso' ? <button disabled={actualizando || !todasFinalizadas} onClick={() => void cambiarEstado('finalizado')} className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">Marcar como finalizada</button> : null}
+      {orden.estado === 'finalizado' ? <><button disabled={actualizando} onClick={() => void cambiarEstado('entregado', '¿Confirmás que la orden ya fue entregada al cliente?')} className="flex items-center gap-2 rounded-md bg-violet-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"><Truck className="h-4 w-4" />Marcar como entregada</button><button disabled={actualizando} onClick={() => void cambiarEstado('en-proceso', '¿Querés volver esta orden a En proceso para realizar una corrección?')} className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm disabled:opacity-50"><RotateCcw className="h-4 w-4" />Volver a En proceso</button></> : null}
+      {orden.estado === 'entregado' ? <span className="flex items-center gap-2 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-800"><CheckCircle2 className="h-4 w-4" />Proceso completado</span> : null}
+      {(orden.estado === 'recepcion' || orden.estado === 'en-proceso' || orden.estado === 'finalizado') ? <button disabled={actualizando} onClick={() => void cambiarEstado('cancelado', '¿Confirmás que querés cancelar esta orden? Esta acción cierra el flujo de trabajo.')} className="ml-auto flex items-center gap-2 rounded-md border border-red-300 bg-white px-4 py-2 text-sm text-red-700 disabled:opacity-50"><Ban className="h-4 w-4" />Cancelar orden</button> : null}
+    </div>
+  </section>;
 }
 
 function Info({ label, value }: { label: string; value?: string }) {
