@@ -1,10 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Users as UsersIcon, Edit, Trash2, Car, Phone, Mail, MapPin, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Car, ChevronDown, ChevronRight, ClipboardList, Edit, Mail, MapPin, Phone, Trash2, TrendingUp, Users as UsersIcon } from 'lucide-react';
 import { Client, cargarClientes, persistirCliente, borrarCliente } from '../clientStore';
 import { cargarOrdenes } from '../store';
 import { getClientFinancialStats } from '../clientStore';
 import { getCurrentUser } from '../auth';
+import type { WorkOrder } from '../types';
+
+const ETIQUETA_ESTADO: Record<WorkOrder['estado'], string> = {
+  recepcion: 'Recepción',
+  'en-proceso': 'En proceso',
+  finalizado: 'Finalizada',
+  entregado: 'Entregada',
+  cancelado: 'Cancelada',
+};
+
+const CLASE_ESTADO: Record<WorkOrder['estado'], string> = {
+  recepcion: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
+  'en-proceso': 'border-blue-500/30 bg-blue-500/10 text-blue-400',
+  finalizado: 'border-green-500/30 bg-green-500/10 text-green-400',
+  entregado: 'border-violet-500/30 bg-violet-500/10 text-violet-400',
+  cancelado: 'border-red-500/30 bg-red-500/10 text-red-400',
+};
 
 export function ClientList() {
   const navigate = useNavigate();
@@ -13,7 +30,8 @@ export function ClientList() {
   const canHistory = isAdmin || Boolean(currentUser?.permissions?.includes('CLIENTES_VER_HISTORIAL'));
   const canFinance = isAdmin || Boolean(currentUser?.permissions?.includes('FINANZAS_VER'));
   const [clients, setClients] = useState<Client[]>([]);
-  const [orders, setOrders] = useState<import('../types').WorkOrder[]>([]);
+  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [clientesConOrdenesExpandidas, setClientesConOrdenesExpandidas] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +53,12 @@ export function ClientList() {
     catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar los clientes'); }
     finally { setLoading(false); }
   }
+
+  const alternarOrdenesCliente = (idCliente: string) => {
+    setClientesConOrdenesExpandidas(actuales => actuales.includes(idCliente)
+      ? actuales.filter(id => id !== idCliente)
+      : [...actuales, idCliente]);
+  };
 
   const handleOpenModal = (client?: Client) => {
     if (client) {
@@ -112,7 +136,7 @@ export function ClientList() {
                   Gestión de Clientes
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Base de datos de clientes y vehículos
+                  Base de datos de clientes, vehículos e historial de órdenes
                 </p>
               </div>
             </div>
@@ -141,6 +165,13 @@ export function ClientList() {
         <div className="grid grid-cols-1 gap-4">
           {clients.map((client) => {
             const stats = getClientFinancialStats(client.nombre, orders);
+            const ordenesCliente = canHistory
+              ? orders.filter(orden => orden.clientId === client.id
+                || (!orden.clientId && orden.cliente.trim().toLocaleLowerCase() === client.nombre.trim().toLocaleLowerCase()))
+                .toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              : [];
+            const ordenesExpandidas = clientesConOrdenesExpandidas.includes(client.id);
+
             return (
               <div
                 key={client.id}
@@ -213,6 +244,47 @@ export function ClientList() {
                     </div>
                   </div>
                 )}
+
+                {canHistory && <div className="mb-4 border-t border-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => alternarOrdenesCliente(client.id)}
+                    className="flex w-full items-center justify-between rounded-lg bg-secondary/30 px-4 py-3 text-left transition-colors hover:bg-secondary/50"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold">
+                      <ClipboardList className="w-4 h-4 text-primary" />
+                      Órdenes del cliente ({ordenesCliente.length})
+                    </span>
+                    {ordenesExpandidas ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+
+                  {ordenesExpandidas && <div className="mt-3 overflow-hidden rounded-lg border border-border">
+                    {ordenesCliente.length === 0 ? <div className="p-4 text-sm text-muted-foreground">Este cliente todavía no tiene órdenes registradas.</div> : <div className="divide-y divide-border">
+                      {ordenesCliente.map(orden => <button
+                        key={orden.id}
+                        type="button"
+                        onClick={() => navigate(`/orden/${orden.id}?format=administrativa`)}
+                        className="grid w-full grid-cols-[minmax(135px,0.8fr)_minmax(180px,1.5fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-secondary/30"
+                      >
+                        <div>
+                          <span className="block font-mono text-sm font-semibold text-primary">{orden.orderNumber}</span>
+                          <span className="text-xs text-muted-foreground">{new Date(orden.date).toLocaleDateString('es-AR')}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{orden.motor || 'Motor sin descripción'}</span>
+                          {orden.numeroMotor ? <span className="block truncate font-mono text-xs text-muted-foreground">N° {orden.numeroMotor}</span> : null}
+                        </div>
+                        <span className={`w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${CLASE_ESTADO[orden.estado]}`}>
+                          {ETIQUETA_ESTADO[orden.estado]}
+                        </span>
+                        {canFinance ? <div className="text-right">
+                          <span className="block font-mono text-sm font-semibold">${orden.total.toLocaleString('es-AR')}</span>
+                          <span className={`text-xs ${orden.saldo > 0 ? 'text-yellow-400' : 'text-green-400'}`}>Saldo ${orden.saldo.toLocaleString('es-AR')}</span>
+                        </div> : <span className="text-right text-xs text-muted-foreground">Ver orden →</span>}
+                      </button>)}
+                    </div>}
+                  </div>}
+                </div>}
 
                 {/* Financial Stats (Solo Admin) */}
                 {canFinance && stats.ordersCount > 0 && (
